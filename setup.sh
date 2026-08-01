@@ -1,5 +1,25 @@
 #!/bin/bash
+# Exit on error
 set -eo pipefail
+
+# Your workspace directory
+WORKSPACE="/workspace"
+WEBUI_DIR="${WORKSPACE}/forge"
+
+# Clone Forge if it doesn't exist
+if [ ! -d "$WEBUI_DIR" ]; then
+    echo "📦 WebUI not found, cloning Forge..."
+    git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git "$WEBUI_DIR"
+    cd "$WEBUI_DIR"
+    echo "📦 Installing Forge dependencies..."
+    pip install -r requirements_versions.txt 2>/dev/null || pip install -r requirements.txt 2>/dev/null
+fi
+
+# Install your extensions and download models here...
+# cd "$WEBUI_DIR/extensions" && git clone ...
+# wget -P "$WEBUI_DIR/models/Stable-diffusion/" "your-checkpoint-url"
+
+echo "✅ Provisioning script completed successfully."
 
 # ============================================
 # CONFIGURATION
