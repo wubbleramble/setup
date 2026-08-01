@@ -1,13 +1,13 @@
 #!/bin/bash
-set -eo pipefail  # Exit on error, catch pipe failures
+set -eo pipefail
 
 # ============================================
-# CONFIGURATION - Adjust these paths
+# CONFIGURATION
 # ============================================
 WORKSPACE="/workspace"
-WEBUI_DIR="${WORKSPACE}/forge"  # or "comfyui" depending on what you use
+WEBUI_DIR="${WORKSPACE}/forge"
 
-# Define directories (matches your notebook structure)
+# Define directories
 EXTENSIONS="${WEBUI_DIR}/extensions"
 VAE_DIR="${WEBUI_DIR}/models/VAE"
 EMBEDDINGS_DIR="${WEBUI_DIR}/embeddings"
@@ -18,21 +18,17 @@ LORA_DIR="${WEBUI_DIR}/models/Lora"
 CONTROLNET_DIR="${WEBUI_DIR}/models/ControlNet"
 
 # ============================================
-# DOWNLOAD FUNCTION (replaces %download)
+# DOWNLOAD FUNCTION
 # ============================================
 download_file() {
     local url="$1"
     local output_dir="$2"
     local filename="$3"
     
-    # Create directory if it doesn't exist
     mkdir -p "$output_dir"
     
-    # If filename not provided, extract from URL
     if [ -z "$filename" ]; then
-        # Try to get filename from URL
         filename=$(basename "$url" | cut -d'?' -f1)
-        # If no filename, generate one from content-disposition or use timestamp
         if [ -z "$filename" ] || [ "$filename" = "download" ]; then
             filename="downloaded_$(date +%s)"
         fi
@@ -40,10 +36,15 @@ download_file() {
     
     local output_path="${output_dir}/${filename}"
     
+    # Skip if file already exists
+    if [ -f "$output_path" ]; then
+        echo "⏭️  File exists, skipping: $filename"
+        return 0
+    fi
+    
     echo "📥 Downloading: $url"
     echo "   → $output_path"
     
-    # Use wget with retry and continue
     wget -q --show-progress --timeout=30 --tries=3 -O "$output_path" "$url" || {
         echo "❌ Failed to download: $url"
         return 1
@@ -53,16 +54,14 @@ download_file() {
 }
 
 # ============================================
-# CLONE FUNCTION (replaces %cd + !git clone)
+# CLONE FUNCTION
 # ============================================
 clone_repo() {
     local repo_url="$1"
     local target_dir="$2"
     
-    # Extract repo name from URL
     local repo_name=$(basename "$repo_url" .git)
     
-    # If no target_dir specified, use repo_name
     if [ -z "$target_dir" ]; then
         target_dir="${EXTENSIONS}/${repo_name}"
     fi
@@ -70,7 +69,6 @@ clone_repo() {
     echo "📦 Cloning: $repo_url"
     echo "   → $target_dir"
     
-    # Remove directory if exists (for fresh clone)
     if [ -d "$target_dir" ]; then
         echo "   ⚠️  Directory exists, pulling latest..."
         cd "$target_dir" && git pull || {
@@ -91,16 +89,24 @@ clone_repo() {
 echo "🚀 Starting PROVISIONING_SCRIPT..."
 echo "⏰ Started at: $(date)"
 
-# Create workspace if it doesn't exist
+# Create workspace
 mkdir -p "$WORKSPACE"
+cd "$WORKSPACE"
 
-# Check if WebUI directory exists
+# ============================================
+# INSTALL FORGE IF MISSING
+# ============================================
 if [ ! -d "$WEBUI_DIR" ]; then
-    echo "❌ WebUI directory not found at: $WEBUI_DIR"
-    echo "   Please ensure your base image has Forge/ComfyUI installed"
-    echo "   Or clone it here with:"
-    echo "   git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git $WEBUI_DIR"
-    exit 1
+    echo "📦 WebUI not found at $WEBUI_DIR, cloning Forge..."
+    git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git "$WEBUI_DIR"
+    
+    cd "$WEBUI_DIR"
+    echo "📦 Installing Forge dependencies..."
+    pip install -r requirements_versions.txt 2>/dev/null || pip install -r requirements.txt 2>/dev/null || echo "⚠️  No requirements file found"
+    
+    echo "✅ Forge installed successfully"
+else
+    echo "✅ WebUI found at $WEBUI_DIR"
 fi
 
 cd "$WEBUI_DIR"
@@ -112,7 +118,6 @@ echo "📦 Installing Extensions..."
 mkdir -p "$EXTENSIONS"
 cd "$EXTENSIONS"
 
-# Clone all extensions
 clone_repo "https://github.com/altoiddealer/sd-webui-ar-plusplus.git"
 clone_repo "https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo.git"
 clone_repo "https://github.com/abzaloff/aadetailer-neoforge.git"
@@ -133,34 +138,24 @@ clone_repo "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helpe
 clone_repo "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
 clone_repo "https://github.com/SiliconeShojo/ScribeNEO.git"
 
-# Return to WebUI directory
 cd "$WEBUI_DIR"
 
 # ============================================
-# 2. DOWNLOAD VAEs
+# 2. DOWNLOAD MODELS (all your existing downloads here)
 # ============================================
 echo "📥 Downloading VAEs..."
 download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR" "vae_model.safetensors"
 
-# ============================================
-# 3. DOWNLOAD EMBEDDINGS
-# ============================================
 echo "📥 Downloading Embeddings..."
 download_file "https://civitai.com/api/download/models/1833157?type=Model&format=SafeTensor" "$EMBEDDINGS_DIR"
 download_file "https://civitai.com/api/download/models/2121199?type=Model&format=Other" "$EMBEDDINGS_DIR"
 download_file "https://civitai.com/api/download/models/1601074?type=Model&format=SafeTensor" "$EMBEDDINGS_DIR"
 
-# ============================================
-# 4. DOWNLOAD UPSCALERS
-# ============================================
 echo "📥 Downloading Upscalers..."
 download_file "https://civitai.red/api/download/models/164821?fileId=2037845" "$UPSCALERS_DIR"
 download_file "https://civitai.red/api/download/models/2674200?fileId=2560903" "$UPSCALERS_DIR"
 download_file "https://civitai.red/api/download/models/729727?fileId=643878" "$UPSCALERS_DIR"
 
-# ============================================
-# 5. DOWNLOAD ADETAILER MODELS
-# ============================================
 echo "📥 Downloading Adetailer Models..."
 download_file "https://civitai.com/api/download/models/176512" "$ADETAILER_DIR" "adetailer_1.safetensors"
 download_file "https://civitai.com/api/download/models/2509406?type=Model&format=PickleTensor" "$ADETAILER_DIR" "adetailer_2.pt"
@@ -175,15 +170,9 @@ download_file "https://civitai.red/api/download/models/582139?fileId=497510" "$A
 download_file "https://civitai.red/api/download/models/2038997?fileId=1935916" "$ADETAILER_DIR" "adetailer_9.safetensors"
 download_file "https://civitai.red/api/download/models/2350456?fileId=2240838" "$ADETAILER_DIR" "adetailer_10.safetensors"
 
-# ============================================
-# 6. DOWNLOAD CHECKPOINT
-# ============================================
 echo "📥 Downloading Checkpoint..."
 download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CKPT_DIR" "checkpoint.safetensors"
 
-# ============================================
-# 7. DOWNLOAD LORAS
-# ============================================
 echo "📥 Downloading LoRAs..."
 download_file "https://civitai.red/api/download/models/2579082?fileId=2466259" "$LORA_DIR" "lora_1.safetensors"
 download_file "https://civitai.red/api/download/models/2177579?fileId=2070697" "$LORA_DIR" "lora_2.safetensors"
@@ -191,9 +180,6 @@ download_file "https://civitai.red/api/download/models/2154919?fileId=2048262" "
 download_file "https://civitai.red/api/download/models/1905807?fileId=1804867" "$LORA_DIR" "lora_4.safetensors"
 download_file "https://civitai.red/api/download/models/2979435?fileId=2866837" "$LORA_DIR" "lora_5.safetensors"
 
-# ============================================
-# 8. DOWNLOAD CONTROLNET MODELS
-# ============================================
 echo "📥 Downloading ControlNet Models..."
 download_file "https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_xl.pth" "$CONTROLNET_DIR" "ip-adapter_xl.pth"
 download_file "https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/diffusers_xl_depth_mid.safetensors" "$CONTROLNET_DIR" "diffusers_xl_depth_mid.safetensors"
@@ -213,29 +199,16 @@ download_file "https://huggingface.co/windsingai/Illustrious-XL-Tile/resolve/mai
 download_file "https://civitai.com/api/download/models/1284707?type=Model&format=SafeTensor&size=full&fp=fp32" "$CONTROLNET_DIR" "controlnet_1284707.safetensors"
 
 # ============================================
-# 9. INSTALL EXTENSION DEPENDENCIES
-# ============================================
-echo "📦 Installing Python dependencies for extensions..."
-cd "$WEBUI_DIR"
-
-# Run the WebUI's dependency installer (if it exists)
-if [ -f "launch.py" ]; then
-    echo "🔄 Running WebUI dependency installer..."
-    python launch.py --skip-torch-cuda-test --exit || true
-fi
-
-# ============================================
-# 10. SETUP COMPLETE
+# 3. SETUP COMPLETE
 # ============================================
 echo ""
 echo "✅ PROVISIONING_SCRIPT COMPLETED SUCCESSFULLY!"
 echo "⏰ Finished at: $(date)"
 echo ""
 echo "📊 Summary:"
-echo "   - $(ls -1 $EXTENSIONS | wc -l) extensions installed"
+echo "   - $(ls -1 $EXTENSIONS 2>/dev/null | wc -l) extensions installed"
 echo "   - $(ls -1 $CKPT_DIR 2>/dev/null | wc -l) checkpoints"
 echo "   - $(ls -1 $LORA_DIR 2>/dev/null | wc -l) LoRAs"
 echo "   - $(ls -1 $CONTROLNET_DIR 2>/dev/null | wc -l) ControlNet models"
 echo ""
-echo "🌐 To start the WebUI, run:"
-echo "   cd $WEBUI_DIR && python launch.py --listen --port 8080"
+echo "🌐 Forge will start automatically after provisioning completes"
