@@ -46,11 +46,25 @@ clone_repo() {
     }
 }
 
-clone_repo "https://github.com/altoiddealer/sd-webui-ar-plusplus.git"
+clone_repo "https://github.com/altoiddealer/--sd-webui-ar-plusplus"
 clone_repo "https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo.git"
 clone_repo "https://github.com/abzaloff/aadetailer-neoforge.git"
-# ... add all your other repos here
-
+clone_repo "https://github.com/eduardoabreu81/sd-civitai-browser-neo.git"
+clone_repo "https://github.com/Haoming02/sd-forge-couple.git"
+clone_repo "https://github.com/Haoming02/sd-forge-nvidia-vfx.git"
+clone_repo "https://github.com/Panchovix/reForge-Sigmas_merge.git"
+clone_repo "https://github.com/Dusky-dev/sd-forge_neo-infinite-image-browsing-xl.git"
+clone_repo "https://github.com/hnmr293/sd-webui-cutoff.git"
+clone_repo "https://github.com/hako-mikan/sd-webui-cd-tuner.git"
+clone_repo "https://github.com/shirayu/sd-webui-enable-checker.git"
+clone_repo "https://github.com/hirorohi03/sd-webui-forge-spectrum.git"
+clone_repo "https://github.com/Haoming02/sd-forge-negpip.git"
+clone_repo "https://github.com/Haoming02/sd-webui-resharpen.git"
+clone_repo "https://github.com/Haoming02/sd-webui-tabs-extension.git"
+clone_repo "https://github.com/light-and-ray/sd-webui-yandere-inpaint-masked-content.git"
+clone_repo "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
+clone_repo "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
+clone_repo "https://github.com/SiliconeShojo/ScribeNEO.git"
 echo "✅ Provisioning script completed successfully."
 
 # ============================================
@@ -170,24 +184,6 @@ echo "📦 Installing Extensions..."
 mkdir -p "$EXTENSIONS"
 cd "$EXTENSIONS"
 
-clone_repo "https://github.com/altoiddealer/--sd-webui-ar-plusplus"
-clone_repo "https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo.git"
-clone_repo "https://github.com/abzaloff/aadetailer-neoforge.git"
-clone_repo "https://github.com/eduardoabreu81/sd-civitai-browser-neo.git"
-clone_repo "https://github.com/Haoming02/sd-forge-couple.git"
-clone_repo "https://github.com/Haoming02/sd-forge-nvidia-vfx.git"
-clone_repo "https://github.com/Panchovix/reForge-Sigmas_merge.git"
-clone_repo "https://github.com/Dusky-dev/sd-forge_neo-infinite-image-browsing-xl.git"
-clone_repo "https://github.com/hnmr293/sd-webui-cutoff.git"
-clone_repo "https://github.com/hako-mikan/sd-webui-cd-tuner.git"
-clone_repo "https://github.com/shirayu/sd-webui-enable-checker.git"
-clone_repo "https://github.com/hirorohi03/sd-webui-forge-spectrum.git"
-clone_repo "https://github.com/Haoming02/sd-forge-negpip.git"
-clone_repo "https://github.com/Haoming02/sd-webui-resharpen.git"
-clone_repo "https://github.com/Haoming02/sd-webui-tabs-extension.git"
-clone_repo "https://github.com/light-and-ray/sd-webui-yandere-inpaint-masked-content.git"
-clone_repo "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
-clone_repo "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
 clone_repo "https://github.com/SiliconeShojo/ScribeNEO.git"
 
 cd "$WEBUI_DIR"
