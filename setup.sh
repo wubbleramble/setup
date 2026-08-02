@@ -2,6 +2,10 @@
 # Exit on error
 set -eo pipefail
 
+# Set git to not prompt for credentials
+export GIT_ASKPASS=echo
+export GIT_TERMINAL_PROMPT=0
+
 # Your workspace directory
 WORKSPACE="/workspace"
 WEBUI_DIR="${WORKSPACE}/forge"
@@ -9,15 +13,43 @@ WEBUI_DIR="${WORKSPACE}/forge"
 # Clone Forge if it doesn't exist
 if [ ! -d "$WEBUI_DIR" ]; then
     echo "📦 WebUI not found, cloning Forge..."
-    git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git "$WEBUI_DIR"
+    git clone https://github.com/Haoming02/sd-webui-forge-classic.git "$WEBUI_DIR"
     cd "$WEBUI_DIR"
     echo "📦 Installing Forge dependencies..."
     pip install -r requirements_versions.txt 2>/dev/null || pip install -r requirements.txt 2>/dev/null
 fi
 
-# Install your extensions and download models here...
-# cd "$WEBUI_DIR/extensions" && git clone ...
-# wget -P "$WEBUI_DIR/models/Stable-diffusion/" "your-checkpoint-url"
+cd "$WEBUI_DIR"
+
+# Create extensions directory
+mkdir -p extensions
+cd extensions
+
+# Clone extensions with the fix
+echo "📦 Installing Extensions..."
+
+# Use GIT_ASKPASS=echo to prevent password prompts
+clone_repo() {
+    local repo_url="$1"
+    local repo_name=$(basename "$repo_url" .git)
+    local target_dir="${repo_name}"
+    
+    if [ -d "$target_dir" ]; then
+        echo "   ⚠️  $repo_name already exists, skipping..."
+        return 0
+    fi
+    
+    echo "📦 Cloning: $repo_name"
+    git clone https://github.com/${repo_url#https://github.com/} "$target_dir" || {
+        echo "❌ Failed to clone $repo_name"
+        return 1
+    }
+}
+
+clone_repo "https://github.com/altoiddealer/sd-webui-ar-plusplus.git"
+clone_repo "https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo.git"
+clone_repo "https://github.com/abzaloff/aadetailer-neoforge.git"
+# ... add all your other repos here
 
 echo "✅ Provisioning script completed successfully."
 
