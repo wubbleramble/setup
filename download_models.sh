@@ -216,9 +216,11 @@ PYEOF
 
 # save_civitai_sidecar <raw_json_path> <thumb_url> <target_dir> <filename>
 # Writes a {filename}.json with model name / base model / trigger
-# words, and a best-effort {filename}.preview.png thumbnail. Only
-# called for Checkpoints and LoRAs, matching this project's existing
-# convention. Failures here are logged but never fail the download.
+# words, and a best-effort {filename}.preview.png thumbnail. Called
+# for every successful Civitai download that had working metadata —
+# trigger words matter most for LoRAs, but thumbnails are useful
+# across all categories. Failures here are logged but never fail
+# the download itself.
 save_civitai_sidecar() {
   local raw_json="$1"
   local thumb_url="$2"
@@ -255,24 +257,40 @@ PYEOF
 # -------------------- Resumable download core --------------------
 #
 # download_with_retry <url> <output_path> <auth_header...>
-# Wraps wget with -c (resume from where a partial file left off) and
-# its own internal retry/timeout settings, then wraps THAT in an
-# outer retry loop. This matters most for large files (checkpoints
-# are ~6GB+): a single dropped connection partway through used to
-# mean losing all progress and marking the whole download failed.
-# Now it resumes instead of restarting.
+#
+# IMPORTANT DETAIL ABOUT CIVITAI: civitai.red / civitai.com redirect
+# to a temporary, cryptographically-signed Cloudflare R2 URL that's
+# generated fresh on every request (visible in the log as the long
+# X-Amz-Signature... URL). If a partial file already exists locally
+# and wget tries to resume (sends a Range header) against a BRAND
+# NEW signed URL from a fresh request, R2 rejects it with a plain
+# "400 Bad Request" rather than honoring the resume.
+#
+# So: resume (-c) is still used, but only within a single wget
+# invocation's own internal retries (--tries=3) — those reconnect to
+# the SAME already-resolved signed URL, which is safe. At the OUTER
+# level (a brand new attempt after several internal retries failed),
+# any partial file is deleted first, so the next attempt starts a
+# clean download against whatever fresh redirect it gets. This trades
+# a bit of bandwidth on repeated failures for actually working.
 MAX_ATTEMPTS=5
 
 download_with_retry() {
   local url="$1"
   local output_path="$2"
-  shift 2
+  local resume_safe="$3"
+  shift 3
   local auth_header=("$@")
 
   local attempt=1
   while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
     if [ "$attempt" -gt 1 ]; then
-      log "  [RETRY] Attempt ${attempt}/${MAX_ATTEMPTS} (resuming from $(du -h "$output_path" 2>/dev/null | cut -f1 || echo 0))"
+      if [ "$resume_safe" = "1" ]; then
+        log "  [RETRY] Attempt ${attempt}/${MAX_ATTEMPTS} (resuming from $(du -h "$output_path" 2>/dev/null | cut -f1 || echo 0))"
+      else
+        log "  [RETRY] Attempt ${attempt}/${MAX_ATTEMPTS} (starting fresh — previous signed URL is no longer valid to resume against)"
+        rm -f "$output_path"
+      fi
       sleep 5
     fi
     if wget -c --tries=3 --timeout=60 --waitretry=10 \
@@ -339,7 +357,9 @@ download_file() {
     fi
 
     log "  [DOWNLOAD] $filename -> $target_dir"
-    if download_with_retry "$url" "$target_path" "${auth_header[@]}"; then
+    local resume_safe=1
+    [ "$is_civitai" -eq 1 ] && resume_safe=0
+    if download_with_retry "$url" "$target_path" "$resume_safe" "${auth_header[@]}"; then
       local actual_size
       actual_size="$(stat -c%s "$target_path" 2>/dev/null || echo 0)"
       # If we know the expected size from Civitai's metadata, require
@@ -357,7 +377,7 @@ download_file() {
       if [ "$size_ok" -eq 1 ]; then
         log "  [OK] $filename"
         SUCCEEDED+=("model: $filename")
-        if [ "$meta_ok" -eq 1 ] && { [ "$target_dir" = "$CHECKPOINT_DIR" ] || [ "$target_dir" = "$LORA_DIR" ]; }; then
+        if [ "$meta_ok" -eq 1 ]; then
           save_civitai_sidecar "$meta_json" "$thumb_url" "$target_dir" "$filename"
         fi
       else
@@ -383,7 +403,10 @@ download_file() {
   ( cd "$TMP_DL_DIR" && rm -f -- *
     local b_attempt=1
     while [ "$b_attempt" -le "$MAX_ATTEMPTS" ]; do
-      [ "$b_attempt" -gt 1 ] && sleep 5
+      if [ "$b_attempt" -gt 1 ]; then
+        rm -f -- *  # fresh start — Civitai's signed URLs can't be resumed against
+        sleep 5
+      fi
       wget -c --tries=3 --timeout=60 --waitretry=10 \
         --progress=bar:force:noscroll --content-disposition \
         "${auth_header[@]}" "$url" 2>&1 | tee -a "$LOG_FILE" && break
