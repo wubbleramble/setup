@@ -1,4 +1,36 @@
 #!/usr/bin/env bash
+#
+# download.sh
+# ------------------------------------------------------------------
+# Downloads extensions and models into a Stable Diffusion WebUI Forge
+# install, meant to be run from a Jupyter terminal cell like:
+#   !bash download.sh
+# or, from a Jupyter shell cell:
+#   bash download.sh
+#
+# WHAT THIS SCRIPT DOES (in plain terms):
+#   1. Clones each extension repo into the extensions/ folder.
+#      If a folder with that repo name already exists, it's skipped
+#      (this is the "duplicate" check for extensions).
+#   2. Downloads each model file into its correct subfolder
+#      (Lora, Stable-diffusion, VAE, ControlNet, etc).
+#      Before downloading, it checks if a file with the same name
+#      already exists in that folder, and skips the download if so.
+#   3. Shows a live progress bar for whichever file is downloading
+#      right now (one at a time — Civitai does not like concurrent
+#      downloads from the same source and can throttle/kill them).
+#   4. NEVER stops the whole script because one link failed. Every
+#      single download is wrapped so a failure is just recorded and
+#      the script moves on to the next one. At the very end you get
+#      a summary of what succeeded, what was skipped, and what failed.
+#
+# WHERE FILES GO:
+#   This assumes your Forge WebUI is at:
+#     /workspace/stable-diffusion-webui-forge
+#   with model folders under .../models/<Category>/ and extensions
+#   under .../extensions/. If your path is different, change BASE_DIR
+#   below (it's the only path variable you should need to touch).
+# ------------------------------------------------------------------
 
 set -uo pipefail
 # NOTE: intentionally NOT using `set -e` here. `set -e` would kill the
@@ -76,29 +108,32 @@ clone_extension() {
   fi
 }
 
-# get_civitai_filename <download_url>
-# Civitai download URLs don't contain a real filename, so we ask the
-# server what filename it intends to send (via the Content-Disposition
-# header) WITHOUT downloading the whole file. This lets us check for
-# duplicates before spending time/bandwidth on a redownload.
-get_civitai_filename() {
-  local url="$1"
-  local auth_header=()
-  if [ -n "$CIVITAI_TOKEN" ]; then
-    auth_header=(--header="Authorization: Bearer ${CIVITAI_TOKEN}")
-  fi
-  # -S dumps headers to stderr, --spider does a HEAD-style check
-  # without saving a body.
-  wget --spider -S "${auth_header[@]}" "$url" 2>&1 \
-    | grep -i "filename=" \
-    | sed -E 's/.*filename="?([^";]+)"?.*/\1/' \
-    | tail -1
-}
-
 # download_file <url> <target_dir> [explicit_filename]
+#
+# NOTE ON APPROACH: earlier versions of this script tried to ask the
+# server for the real filename with a lightweight HEAD-style request
+# ("--spider") BEFORE downloading, so duplicates could be skipped
+# without wasting bandwidth. In practice, Civitai's servers often only
+# send the real filename (via the Content-Disposition header) on the
+# actual GET request — sometimes only after a redirect to their CDN —
+# so the HEAD-style pre-check came back empty and every Civitai
+# download failed with "Could not determine filename".
+#
+# This version instead lets `wget` do the one thing it's actually
+# built to do well: follow redirects, read the real
+# Content-Disposition header, and name the file correctly — via
+# wget's own --content-disposition flag. To still support duplicate
+# detection without wasting a full re-download, non-huggingface links
+# (i.e. anything where we can't just read the filename off the URL)
+# are downloaded to a temporary holding folder first; only once we
+# know the real filename do we check if it's already in the target
+# folder, and either discard the duplicate or move the new file in.
+#
 # Downloads a single file with a live progress bar. Skips if a file
 # of the same name already exists in target_dir. Never exits the
 # script on failure — just records it.
+TMP_DL_DIR="$(mktemp -d)"
+
 download_file() {
   local url="$1"
   local target_dir="$2"
@@ -109,51 +144,78 @@ download_file() {
     auth_header=(--header="Authorization: Bearer ${CIVITAI_TOKEN}")
   fi
 
-  # If no filename was given explicitly, figure it out.
-  if [ -z "$filename" ]; then
-    if [[ "$url" == *civitai.com* || "$url" == *civitai.red* ]]; then
-      filename="$(get_civitai_filename "$url")"
-    else
-      # For direct links (e.g. huggingface), the URL's last path
-      # segment is normally the real filename.
-      filename="$(basename "${url%%\?*}")"
+  # Case 1: filename was given explicitly, or it's a direct link
+  # (e.g. huggingface) where the URL's last path segment is already
+  # the real filename. We can check for a duplicate immediately,
+  # without downloading anything first.
+  if [ -z "$filename" ] && [[ "$url" != *civitai.com* && "$url" != *civitai.red* ]]; then
+    filename="$(basename "${url%%\?*}")"
+  fi
+
+  if [ -n "$filename" ]; then
+    local target_path="${target_dir}/${filename}"
+    if [ -f "$target_path" ]; then
+      log "  [SKIP] Already exists: $filename"
+      SKIPPED+=("model: $filename")
+      return 0
     fi
-  fi
-
-  if [ -z "$filename" ]; then
-    log "  [FAIL] Could not determine filename for: $url"
-    FAILED+=("model: (unknown filename) (url: $url)")
-    return 1
-  fi
-
-  local target_path="${target_dir}/${filename}"
-
-  if [ -f "$target_path" ]; then
-    log "  [SKIP] Already exists: $filename"
-    SKIPPED+=("model: $filename")
+    log "  [DOWNLOAD] $filename -> $target_dir"
+    if wget --progress=bar:force:noscroll "${auth_header[@]}" \
+        -O "$target_path" "$url" 2>&1 | tee -a "$LOG_FILE"; then
+      if [ -s "$target_path" ] && [ "$(stat -c%s "$target_path")" -gt 10240 ]; then
+        log "  [OK] $filename"
+        SUCCEEDED+=("model: $filename")
+      else
+        log "  [FAIL] $filename downloaded but looks invalid (too small) — removing"
+        rm -f "$target_path"
+        FAILED+=("model: $filename (url: $url) — file too small, likely bad link/token")
+      fi
+    else
+      log "  [FAIL] $filename"
+      rm -f "$target_path"
+      FAILED+=("model: $filename (url: $url)")
+    fi
     return 0
   fi
 
-  log "  [DOWNLOAD] $filename -> $target_dir"
-  if wget --progress=bar:force:noscroll "${auth_header[@]}" \
-      -O "$target_path" "$url" 2>&1 | tee -a "$LOG_FILE"; then
-    # wget can "succeed" (exit 0) but still have written a tiny error
-    # page instead of the real file (e.g. bad/expired link). A quick
-    # sanity check: anything under 10KB is almost certainly not a
-    # real model/image file.
-    if [ -s "$target_path" ] && [ "$(stat -c%s "$target_path")" -gt 10240 ]; then
-      log "  [OK] $filename"
-      SUCCEEDED+=("model: $filename")
-    else
-      log "  [FAIL] $filename downloaded but looks invalid (too small) — removing"
-      rm -f "$target_path"
-      FAILED+=("model: $filename (url: $url) — file too small, likely bad link/token")
-    fi
-  else
-    log "  [FAIL] $filename"
-    rm -f "$target_path"
-    FAILED+=("model: $filename (url: $url)")
+  # Case 2: filename unknown ahead of time (Civitai links). Download
+  # into a temp folder, letting wget name the file itself from the
+  # real Content-Disposition header, THEN check for duplicates.
+  ( cd "$TMP_DL_DIR" && rm -f -- *  # clear temp dir from any previous file
+    wget --progress=bar:force:noscroll --content-disposition \
+      "${auth_header[@]}" "$url" 2>&1 ) | tee -a "$LOG_FILE"
+
+  local downloaded_file
+  downloaded_file="$(find "$TMP_DL_DIR" -maxdepth 1 -type f -printf '%f\n' | head -1)"
+
+  if [ -z "$downloaded_file" ]; then
+    log "  [FAIL] Download produced no file: $url"
+    FAILED+=("model: (unknown filename) (url: $url) — no file was produced")
+    return 1
   fi
+
+  local downloaded_size
+  downloaded_size="$(stat -c%s "${TMP_DL_DIR}/${downloaded_file}")"
+
+  if [ "$downloaded_size" -le 10240 ]; then
+    log "  [FAIL] $downloaded_file downloaded but looks invalid (too small)"
+    rm -f "${TMP_DL_DIR:?}/${downloaded_file}"
+    FAILED+=("model: $downloaded_file (url: $url) — file too small, likely bad link/token")
+    return 1
+  fi
+
+  local target_path="${target_dir}/${downloaded_file}"
+  if [ -f "$target_path" ]; then
+    log "  [SKIP] Already exists (discarding re-download): $downloaded_file"
+    SKIPPED+=("model: $downloaded_file")
+    rm -f "${TMP_DL_DIR:?}/${downloaded_file}"
+    return 0
+  fi
+
+  mv "${TMP_DL_DIR}/${downloaded_file}" "$target_path"
+  log "  [OK] $downloaded_file"
+  SUCCEEDED+=("model: $downloaded_file")
+  return 0
 }
 
 # ==================== MAIN ====================
@@ -280,3 +342,5 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
 fi
 
 log "\nFull log saved to: $LOG_FILE"
+
+rm -rf "$TMP_DL_DIR"
