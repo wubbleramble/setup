@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Stable Diffusion WebUI Model Download Script
+# Stable Diffusion WebUI Model Download Script with proper filename handling
 # Run this from Jupyter terminal
 
 # Base paths
@@ -9,9 +9,6 @@ MODELS_PATH="${BASE_PATH}/models"
 EXTENSIONS_PATH="${BASE_PATH}/extensions"
 
 # API Keys (set these before running)
-# Get your keys from:
-# Civitai: https://civitai.com/user/account (API Keys section)
-# Hugging Face: https://huggingface.co/settings/tokens
 CIVITAI_API_KEY="${CIVITAI_API_KEY:-}"
 HUGGINGFACE_TOKEN="${HUGGINGFACE_TOKEN:-}"
 
@@ -27,6 +24,10 @@ FAILED_COUNT=0
 SUCCESS_COUNT=0
 SKIPPED_COUNT=0
 TOTAL_ITEMS=0
+
+# Temporary directory for API responses
+TEMP_DIR="/tmp/sd_download_$$"
+mkdir -p "$TEMP_DIR"
 
 # Function to print colored output
 print_header() {
@@ -54,7 +55,173 @@ print_skip() {
     ((SKIPPED_COUNT++))
 }
 
-# Function to download file with proper auth headers
+# Function to get proper filename from Civitai response
+get_civitai_filename() {
+    local url="$1"
+    local temp_response="${TEMP_DIR}/civitai_response_$$.json"
+    
+    # Try to get filename from headers first
+    local filename=""
+    
+    # Method 1: Try to get filename from Content-Disposition
+    if command -v curl >/dev/null 2>&1; then
+        # Use curl to get headers
+        local headers=$(curl -sI -L "$url" 2>/dev/null)
+        if [[ "$headers" =~ filename=\"([^\"]+)\" ]]; then
+            filename="${BASH_REMATCH[1]}"
+            echo "$filename"
+            return 0
+        elif [[ "$headers" =~ filename=([^;\ ]+) ]]; then
+            filename="${BASH_REMATCH[1]}"
+            echo "$filename"
+            return 0
+        fi
+    fi
+    
+    # Method 2: Try to get model info from API
+    if [[ "$url" == *"civitai.com/api/download/models/"* ]]; then
+        local model_id=$(echo "$url" | sed -n 's/.*models\/\([0-9]*\).*/\1/p')
+        local api_url="https://civitai.com/api/v1/models/${model_id}"
+        
+        if command -v curl >/dev/null 2>&1; then
+            local api_response=$(curl -s "$api_url" 2>/dev/null)
+            if [ -n "$api_response" ]; then
+                # Try to get model name
+                local model_name=$(echo "$api_response" | grep -o '"name":"[^"]*"' | head -1 | sed 's/"name":"//' | sed 's/"//')
+                if [ -n "$model_name" ] && [ "$model_name" != "null" ]; then
+                    # Get version info
+                    local version_name=$(echo "$api_response" | grep -o '"name":"[^"]*"' | tail -1 | sed 's/"name":"//' | sed 's/"//')
+                    if [ -n "$version_name" ] && [ "$version_name" != "null" ]; then
+                        echo "${model_name}_${version_name}"
+                        return 0
+                    else
+                        echo "${model_name}"
+                        return 0
+                    fi
+                fi
+            fi
+        fi
+    fi
+    
+    # Method 3: Fallback - use URL parameters
+    if [[ "$url" == *"format="* ]]; then
+        local format=$(echo "$url" | grep -o "format=[^&]*" | cut -d= -f2)
+        if [[ "$format" == "SafeTensor" ]]; then
+            echo "model.safetensors"
+            return 0
+        elif [[ "$format" == "PickleTensor" ]]; then
+            echo "model.ckpt"
+            return 0
+        elif [[ "$format" == "Other" ]]; then
+            echo "model.bin"
+            return 0
+        elif [[ "$format" == "Archive" ]]; then
+            echo "model.zip"
+            return 0
+        fi
+    fi
+    
+    # Method 4: Use the last part of URL
+    local basename=$(basename "${url%%\?*}")
+    if [ -n "$basename" ] && [ "$basename" != "download" ]; then
+        echo "$basename"
+        return 0
+    fi
+    
+    # Last resort: use model ID with .safetensors
+    if [[ "$url" == *"civitai.com/api/download/models/"* ]]; then
+        local id=$(echo "$url" | sed -n 's/.*models\/\([0-9]*\).*/\1/p')
+        if [ -n "$id" ]; then
+            # Check if file format is specified in URL
+            if [[ "$url" == *"format=SafeTensor"* ]]; then
+                echo "${id}.safetensors"
+                return 0
+            elif [[ "$url" == *"format=PickleTensor"* ]]; then
+                echo "${id}.ckpt"
+                return 0
+            elif [[ "$url" == *"format=Other"* ]]; then
+                echo "${id}.bin"
+                return 0
+            elif [[ "$url" == *"format=Archive"* ]]; then
+                echo "${id}.zip"
+                return 0
+            else
+                echo "${id}.safetensors"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Default fallback
+    echo "download_$(date +%s).file"
+    return 0
+}
+
+# Function to download and save model metadata
+save_model_metadata() {
+    local url="$1"
+    local destination="$2"
+    local filename="$3"
+    
+    # Only for Civitai models
+    if [[ "$url" != *"civitai.com"* ]]; then
+        return 0
+    fi
+    
+    # Extract model ID
+    local model_id=$(echo "$url" | sed -n 's/.*models\/\([0-9]*\).*/\1/p')
+    if [ -z "$model_id" ]; then
+        return 0
+    fi
+    
+    # Get model info from API
+    local api_url="https://civitai.com/api/v1/models/${model_id}"
+    local metadata_file="${destination}/${filename%.*}_metadata.json"
+    
+    print_info "Fetching metadata for model ID: $model_id"
+    
+    if command -v curl >/dev/null 2>&1; then
+        local api_response=$(curl -s "$api_url" 2>/dev/null)
+        if [ -n "$api_response" ] && [ "$api_response" != "null" ]; then
+            # Save metadata
+            echo "$api_response" > "$metadata_file"
+            
+            # Try to download preview image
+            local image_url=$(echo "$api_response" | grep -o '"image":"[^"]*"' | head -1 | sed 's/"image":"//' | sed 's/"//' | sed 's/\\//g')
+            if [ -n "$image_url" ] && [ "$image_url" != "null" ]; then
+                local image_file="${destination}/${filename%.*}_preview.jpg"
+                print_info "Downloading preview image..."
+                if command -v wget >/dev/null 2>&1; then
+                    wget -q "$image_url" -O "$image_file" 2>/dev/null || print_error "Failed to download preview image"
+                elif command -v curl >/dev/null 2>&1; then
+                    curl -s "$image_url" -o "$image_file" 2>/dev/null || print_error "Failed to download preview image"
+                fi
+            fi
+            
+            # Extract and save trigger words/activation tags
+            local trigger_words=$(echo "$api_response" | grep -o '"triggerWords":"[^"]*"' | head -1 | sed 's/"triggerWords":"//' | sed 's/"//' | sed 's/\\//g')
+            if [ -n "$trigger_words" ] && [ "$trigger_words" != "null" ]; then
+                local trigger_file="${destination}/${filename%.*}_triggers.txt"
+                echo -e "$trigger_words" | tr ',' '\n' > "$trigger_file"
+                print_info "Saved trigger words: $trigger_words"
+            fi
+            
+            # Save model description
+            local description=$(echo "$api_response" | grep -o '"description":"[^"]*"' | head -1 | sed 's/"description":"//' | sed 's/"//' | sed 's/\\n/\n/g' | sed 's/\\r/\r/g')
+            if [ -n "$description" ] && [ "$description" != "null" ]; then
+                local desc_file="${destination}/${filename%.*}_description.txt"
+                echo -e "$description" > "$desc_file"
+            fi
+            
+            print_success "Saved metadata for $filename"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Function to download file with proper error handling
 download_file() {
     local url="$1"
     local destination="$2"
@@ -70,12 +237,32 @@ download_file() {
         return 1
     }
     
-    # Determine filename
+    # Get proper filename
     if [ -z "$filename" ]; then
-        filename=$(basename "${url%%\?*}")
-        # If filename is empty or just a hash, generate from URL
-        if [ -z "$filename" ] || [ "$filename" = "download" ] || [ "$filename" = "download" ]; then
-            filename=$(echo "$url" | md5sum | cut -d' ' -f1)
+        if [ "$is_civitai" = "true" ]; then
+            filename=$(get_civitai_filename "$url")
+        else
+            # For huggingface and others
+            filename=$(basename "${url%%\?*}")
+            if [ -z "$filename" ] || [ "$filename" = "download" ] || [ "$filename" = "download" ]; then
+                filename=$(echo "$url" | md5sum | cut -d' ' -f1)
+                # Add extension based on URL
+                if [[ "$url" == *"format=SafeTensor"* ]] || [[ "$url" == *".safetensors"* ]]; then
+                    filename="${filename}.safetensors"
+                elif [[ "$url" == *"format=PickleTensor"* ]] || [[ "$url" == *".ckpt"* ]]; then
+                    filename="${filename}.ckpt"
+                elif [[ "$url" == *".pt"* ]]; then
+                    filename="${filename}.pt"
+                elif [[ "$url" == *".pth"* ]]; then
+                    filename="${filename}.pth"
+                elif [[ "$url" == *".bin"* ]]; then
+                    filename="${filename}.bin"
+                elif [[ "$url" == *".zip"* ]]; then
+                    filename="${filename}.zip"
+                else
+                    filename="${filename}.safetensors"
+                fi
+            fi
         fi
     fi
     
@@ -110,6 +297,12 @@ download_file() {
         # Verify file exists and has content
         if [ -f "$filepath" ] && [ -s "$filepath" ]; then
             print_success "Downloaded: $filename"
+            
+            # Save metadata for Civitai models
+            if [ "$is_civitai" = "true" ]; then
+                save_model_metadata "$url" "$destination" "$filename"
+            fi
+            
             return 0
         else
             print_error "Downloaded file is empty or corrupt: $filename"
@@ -328,6 +521,9 @@ main() {
             download_file "$url" "${MODELS_PATH}/ControlNet" "" "false" "false"
         fi
     done
+    
+    # Cleanup
+    rm -rf "$TEMP_DIR"
     
     # Summary
     print_header "Setup Complete!"
