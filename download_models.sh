@@ -53,11 +53,18 @@ CHECKPOINT_DIR="${MODELS_DIR}/Stable-diffusion"
 VAE_DIR="${MODELS_DIR}/VAE"
 ADETAILER_DIR="${MODELS_DIR}/adetailer"
 
-# Civitai API token, if your links need auth to resolve (recommended:
-# export CIVITAI_TOKEN as an environment variable before running this
-# script, rather than hardcoding it here, so it's never committed to
-# the GitHub repo by accident).
-CIVITAI_TOKEN="${CIVITAI_TOKEN:-}"
+# Civitai API key, if your links need auth to resolve. This script
+# reads it from the environment — set it BEFORE running the script,
+# e.g. in your terminal session:
+#   export CIVITAI_API_KEY="your_key_here"
+# It is never written into this file, so it's safe for this script
+# to live in a public GitHub repo.
+CIVITAI_API_KEY="${CIVITAI_API_KEY:-}"
+
+# Optional: Hugging Face token, for gated/private model repos. Public
+# huggingface.co downloads (like the ControlNet/adetailer links below)
+# don't need this, but it's picked up automatically if set.
+HUGGINGFACE_TOKEN="${HUGGINGFACE_TOKEN:-}"
 
 LOG_FILE="./download_log_$(date +%Y%m%d_%H%M%S).txt"
 
@@ -140,8 +147,10 @@ download_file() {
   local filename="${3:-}"
 
   local auth_header=()
-  if [[ "$url" == *civitai.com* || "$url" == *civitai.red* ]] && [ -n "$CIVITAI_TOKEN" ]; then
-    auth_header=(--header="Authorization: Bearer ${CIVITAI_TOKEN}")
+  if [[ "$url" == *civitai.com* || "$url" == *civitai.red* ]] && [ -n "$CIVITAI_API_KEY" ]; then
+    auth_header=(--header="Authorization: Bearer ${CIVITAI_API_KEY}")
+  elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
+    auth_header=(--header="Authorization: Bearer ${HUGGINGFACE_TOKEN}")
   fi
 
   # Case 1: filename was given explicitly, or it's a direct link
