@@ -115,52 +115,221 @@ clone_extension() {
   fi
 }
 
+# -------------------- Civitai metadata support --------------------
+#
+# For Civitai links, we now call Civitai's real metadata API
+# (api/v1/model-versions/{id}) BEFORE downloading. This gets us:
+#   - the real filename (more reliable than guessing from headers)
+#   - the exact expected file size, so we can confirm a huge download
+#     actually completed instead of silently ending up truncated
+#   - trigger words / trained activation words (for LoRAs especially)
+#   - a thumbnail preview image URL
+#
+# This requires python3 (for parsing the JSON) and curl, both of
+# which are already present on essentially every Jupyter/vast.ai
+# image. If either is missing, the script automatically falls back
+# to the older "download first, read filename from headers" method.
+HAVE_PY3="$(command -v python3 || true)"
+HAVE_CURL="$(command -v curl || true)"
+
+META_TMP_DIR="$(mktemp -d)"
+
+# civitai_fetch_metadata <url> <out_prefix>
+# On success, writes three files under $META_TMP_DIR named
+# <out_prefix>.filename / .size_bytes / .thumb_url, and leaves the
+# full raw API JSON at <out_prefix>.json (used later for the sidecar
+# metadata file with trigger words). Returns 1 if anything about this
+# lookup didn't work (missing tools, no ID found, API error, etc.) —
+# callers should treat that as "fall back to the old method", not a
+# fatal error.
+civitai_fetch_metadata() {
+  local url="$1"
+  local prefix="$2"
+
+  [ -n "$HAVE_PY3" ] && [ -n "$HAVE_CURL" ] || return 1
+
+  local mv_id
+  mv_id="$(echo "$url" | grep -oE '/models/[0-9]+' | head -1 | grep -oE '[0-9]+')"
+  [ -n "$mv_id" ] || return 1
+
+  local file_id
+  file_id="$(echo "$url" | grep -oE 'fileId=[0-9]+' | grep -oE '[0-9]+')"
+
+  local auth=()
+  [ -n "$CIVITAI_API_KEY" ] && auth=(-H "Authorization: Bearer ${CIVITAI_API_KEY}")
+
+  local raw_json="${META_TMP_DIR}/${prefix}.json"
+  # Always query the official civitai.com API for metadata, even if
+  # the download link itself points at the civitai.red mirror.
+  if ! curl -fsSL "${auth[@]}" "https://civitai.com/api/v1/model-versions/${mv_id}" \
+      -o "$raw_json" 2>>"$LOG_FILE"; then
+    return 1
+  fi
+  [ -s "$raw_json" ] || return 1
+
+  local parsed
+  parsed="$(FILE_ID="$file_id" python3 <<PYEOF
+import json, os
+try:
+    with open("$raw_json") as fh:
+        data = json.load(fh)
+    file_id = os.environ.get("FILE_ID") or ""
+    files = data.get("files", []) or []
+    chosen = None
+    if file_id:
+        for f in files:
+            if str(f.get("id")) == file_id:
+                chosen = f
+                break
+    if chosen is None:
+        for f in files:
+            if f.get("primary"):
+                chosen = f
+                break
+    if chosen is None and files:
+        chosen = files[0]
+    name = chosen.get("name", "") if chosen else ""
+    size_kb = chosen.get("sizeKB", 0) if chosen else 0
+    size_bytes = int(size_kb * 1024) if size_kb else 0
+    images = data.get("images", []) or []
+    thumb = images[0].get("url", "") if images else ""
+    print(name)
+    print(size_bytes)
+    print(thumb)
+except Exception:
+    print("")
+    print("0")
+    print("")
+PYEOF
+)"
+
+  local pfilename psize pthumb
+  { IFS= read -r pfilename; IFS= read -r psize; IFS= read -r pthumb; } <<< "$parsed"
+
+  [ -n "$pfilename" ] || return 1
+
+  echo -n "$pfilename" > "${META_TMP_DIR}/${prefix}.filename"
+  echo -n "$psize" > "${META_TMP_DIR}/${prefix}.size_bytes"
+  echo -n "$pthumb" > "${META_TMP_DIR}/${prefix}.thumb_url"
+  return 0
+}
+
+# save_civitai_sidecar <raw_json_path> <thumb_url> <target_dir> <filename>
+# Writes a {filename}.json with model name / base model / trigger
+# words, and a best-effort {filename}.preview.png thumbnail. Only
+# called for Checkpoints and LoRAs, matching this project's existing
+# convention. Failures here are logged but never fail the download.
+save_civitai_sidecar() {
+  local raw_json="$1"
+  local thumb_url="$2"
+  local target_dir="$3"
+  local filename="$4"
+
+  if [ -n "$HAVE_PY3" ] && [ -s "$raw_json" ]; then
+    OUT_PATH="${target_dir}/${filename}.json" python3 <<PYEOF || log "  [WARN] Could not write metadata sidecar for $filename"
+import json, os
+with open("$raw_json") as fh:
+    data = json.load(fh)
+sidecar = {
+    "model_name": (data.get("model") or {}).get("name", ""),
+    "version_name": data.get("name", ""),
+    "base_model": data.get("baseModel", ""),
+    "trained_words": data.get("trainedWords", []) or [],
+}
+with open(os.environ["OUT_PATH"], "w") as out:
+    json.dump(sidecar, out, indent=2)
+PYEOF
+    log "  [META] Saved trigger words / info to ${filename}.json"
+  fi
+
+  if [ -n "$thumb_url" ]; then
+    if wget -q -O "${target_dir}/${filename}.preview.png" "$thumb_url"; then
+      log "  [META] Saved thumbnail to ${filename}.preview.png"
+    else
+      log "  [WARN] Thumbnail download failed for $filename"
+      rm -f "${target_dir}/${filename}.preview.png"
+    fi
+  fi
+}
+
+# -------------------- Resumable download core --------------------
+#
+# download_with_retry <url> <output_path> <auth_header...>
+# Wraps wget with -c (resume from where a partial file left off) and
+# its own internal retry/timeout settings, then wraps THAT in an
+# outer retry loop. This matters most for large files (checkpoints
+# are ~6GB+): a single dropped connection partway through used to
+# mean losing all progress and marking the whole download failed.
+# Now it resumes instead of restarting.
+MAX_ATTEMPTS=5
+
+download_with_retry() {
+  local url="$1"
+  local output_path="$2"
+  shift 2
+  local auth_header=("$@")
+
+  local attempt=1
+  while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+    if [ "$attempt" -gt 1 ]; then
+      log "  [RETRY] Attempt ${attempt}/${MAX_ATTEMPTS} (resuming from $(du -h "$output_path" 2>/dev/null | cut -f1 || echo 0))"
+      sleep 5
+    fi
+    if wget -c --tries=3 --timeout=60 --waitretry=10 \
+        --progress=bar:force:noscroll "${auth_header[@]}" \
+        -O "$output_path" "$url" 2>&1 | tee -a "$LOG_FILE"; then
+      return 0
+    fi
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
 # download_file <url> <target_dir> [explicit_filename]
-#
-# NOTE ON APPROACH: earlier versions of this script tried to ask the
-# server for the real filename with a lightweight HEAD-style request
-# ("--spider") BEFORE downloading, so duplicates could be skipped
-# without wasting bandwidth. In practice, Civitai's servers often only
-# send the real filename (via the Content-Disposition header) on the
-# actual GET request — sometimes only after a redirect to their CDN —
-# so the HEAD-style pre-check came back empty and every Civitai
-# download failed with "Could not determine filename".
-#
-# This version instead lets `wget` do the one thing it's actually
-# built to do well: follow redirects, read the real
-# Content-Disposition header, and name the file correctly — via
-# wget's own --content-disposition flag. To still support duplicate
-# detection without wasting a full re-download, non-huggingface links
-# (i.e. anything where we can't just read the filename off the URL)
-# are downloaded to a temporary holding folder first; only once we
-# know the real filename do we check if it's already in the target
-# folder, and either discard the duplicate or move the new file in.
 #
 # Downloads a single file with a live progress bar. Skips if a file
 # of the same name already exists in target_dir. Never exits the
-# script on failure — just records it.
-TMP_DL_DIR="$(mktemp -d)"
-
+# script on failure — just records it. For Civitai links, also
+# fetches and saves trigger words + thumbnail (for Checkpoints/LoRAs).
 download_file() {
   local url="$1"
   local target_dir="$2"
   local filename="${3:-}"
+  local is_civitai=0
+  [[ "$url" == *civitai.com* || "$url" == *civitai.red* ]] && is_civitai=1
 
   local auth_header=()
-  if [[ "$url" == *civitai.com* || "$url" == *civitai.red* ]] && [ -n "$CIVITAI_API_KEY" ]; then
+  if [ "$is_civitai" -eq 1 ] && [ -n "$CIVITAI_API_KEY" ]; then
     auth_header=(--header="Authorization: Bearer ${CIVITAI_API_KEY}")
   elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
     auth_header=(--header="Authorization: Bearer ${HUGGINGFACE_TOKEN}")
   fi
 
-  # Case 1: filename was given explicitly, or it's a direct link
-  # (e.g. huggingface) where the URL's last path segment is already
-  # the real filename. We can check for a duplicate immediately,
-  # without downloading anything first.
-  if [ -z "$filename" ] && [[ "$url" != *civitai.com* && "$url" != *civitai.red* ]]; then
+  local expected_size=0
+  local thumb_url=""
+  local meta_json=""
+  local meta_ok=0
+
+  if [ "$is_civitai" -eq 1 ] && [ -z "$filename" ]; then
+    local prefix
+    prefix="m$(echo "$url" | md5sum | cut -c1-10)"
+    if civitai_fetch_metadata "$url" "$prefix"; then
+      meta_ok=1
+      filename="$(cat "${META_TMP_DIR}/${prefix}.filename")"
+      expected_size="$(cat "${META_TMP_DIR}/${prefix}.size_bytes")"
+      thumb_url="$(cat "${META_TMP_DIR}/${prefix}.thumb_url")"
+      meta_json="${META_TMP_DIR}/${prefix}.json"
+    fi
+  fi
+
+  if [ -z "$filename" ] && [ "$is_civitai" -eq 0 ]; then
+    # Direct links (e.g. huggingface) — the URL's last path segment
+    # is normally the real filename.
     filename="$(basename "${url%%\?*}")"
   fi
 
+  # ---- Case A: filename known ahead of time (explicit, hf, or via
+  # Civitai metadata). Duplicate check can happen before downloading.
   if [ -n "$filename" ]; then
     local target_path="${target_dir}/${filename}"
     if [ -f "$target_path" ]; then
@@ -168,31 +337,59 @@ download_file() {
       SKIPPED+=("model: $filename")
       return 0
     fi
+
     log "  [DOWNLOAD] $filename -> $target_dir"
-    if wget --progress=bar:force:noscroll "${auth_header[@]}" \
-        -O "$target_path" "$url" 2>&1 | tee -a "$LOG_FILE"; then
-      if [ -s "$target_path" ] && [ "$(stat -c%s "$target_path")" -gt 10240 ]; then
+    if download_with_retry "$url" "$target_path" "${auth_header[@]}"; then
+      local actual_size
+      actual_size="$(stat -c%s "$target_path" 2>/dev/null || echo 0)"
+      # If we know the expected size from Civitai's metadata, require
+      # we're within 1% of it (accounts for rounding in their sizeKB
+      # field). Otherwise fall back to the basic "bigger than 10KB"
+      # sanity check.
+      local size_ok=0
+      if [ "$expected_size" -gt 0 ]; then
+        local min_ok=$(( expected_size * 99 / 100 ))
+        [ "$actual_size" -ge "$min_ok" ] && size_ok=1
+      elif [ "$actual_size" -gt 10240 ]; then
+        size_ok=1
+      fi
+
+      if [ "$size_ok" -eq 1 ]; then
         log "  [OK] $filename"
         SUCCEEDED+=("model: $filename")
+        if [ "$meta_ok" -eq 1 ] && { [ "$target_dir" = "$CHECKPOINT_DIR" ] || [ "$target_dir" = "$LORA_DIR" ]; }; then
+          save_civitai_sidecar "$meta_json" "$thumb_url" "$target_dir" "$filename"
+        fi
       else
-        log "  [FAIL] $filename downloaded but looks invalid (too small) — removing"
+        log "  [FAIL] $filename downloaded but size looks wrong (got ${actual_size} bytes, expected ~${expected_size}) — removing"
         rm -f "$target_path"
-        FAILED+=("model: $filename (url: $url) — file too small, likely bad link/token")
+        FAILED+=("model: $filename (url: $url) — incomplete/wrong-size download")
       fi
     else
-      log "  [FAIL] $filename"
+      log "  [FAIL] $filename — all ${MAX_ATTEMPTS} attempts failed"
       rm -f "$target_path"
       FAILED+=("model: $filename (url: $url)")
     fi
     return 0
   fi
 
-  # Case 2: filename unknown ahead of time (Civitai links). Download
-  # into a temp folder, letting wget name the file itself from the
-  # real Content-Disposition header, THEN check for duplicates.
-  ( cd "$TMP_DL_DIR" && rm -f -- *  # clear temp dir from any previous file
-    wget --progress=bar:force:noscroll --content-disposition \
-      "${auth_header[@]}" "$url" 2>&1 ) | tee -a "$LOG_FILE"
+  # ---- Case B: Civitai metadata lookup failed (API down, unusual
+  # URL shape, etc). Fall back to downloading into a temp folder and
+  # letting wget read the real filename from Content-Disposition.
+  # NOTE: wget's -O flag always overrides --content-disposition
+  # naming, so this deliberately does NOT use -O / download_with_retry
+  # — it lets wget name the file itself, with its own -c/--tries for
+  # resume support on large files.
+  ( cd "$TMP_DL_DIR" && rm -f -- *
+    local b_attempt=1
+    while [ "$b_attempt" -le "$MAX_ATTEMPTS" ]; do
+      [ "$b_attempt" -gt 1 ] && sleep 5
+      wget -c --tries=3 --timeout=60 --waitretry=10 \
+        --progress=bar:force:noscroll --content-disposition \
+        "${auth_header[@]}" "$url" 2>&1 | tee -a "$LOG_FILE" && break
+      b_attempt=$((b_attempt + 1))
+    done
+  )
 
   local downloaded_file
   downloaded_file="$(find "$TMP_DL_DIR" -maxdepth 1 -type f -printf '%f\n' | head -1)"
@@ -204,7 +401,7 @@ download_file() {
   fi
 
   local downloaded_size
-  downloaded_size="$(stat -c%s "${TMP_DL_DIR}/${downloaded_file}")"
+  downloaded_size="$(stat -c%s "${TMP_DL_DIR}/${downloaded_file}" 2>/dev/null || echo 0)"
 
   if [ "$downloaded_size" -le 10240 ]; then
     log "  [FAIL] $downloaded_file downloaded but looks invalid (too small)"
@@ -222,10 +419,16 @@ download_file() {
   fi
 
   mv "${TMP_DL_DIR}/${downloaded_file}" "$target_path"
-  log "  [OK] $downloaded_file"
+  log "  [OK] $downloaded_file (no trigger-word metadata — Civitai API lookup failed for this link)"
   SUCCEEDED+=("model: $downloaded_file")
   return 0
 }
+
+# Temp folder used only by the Case B fallback path above (when a
+# Civitai metadata lookup fails and we have to read the filename off
+# the download response instead). Removed at the very end of the
+# script.
+TMP_DL_DIR="$(mktemp -d)"
 
 # ==================== MAIN ====================
 
@@ -353,3 +556,4 @@ fi
 log "\nFull log saved to: $LOG_FILE"
 
 rm -rf "$TMP_DL_DIR"
+rm -rf "$META_TMP_DIR"
