@@ -170,7 +170,7 @@ echo "📦 Installing Extensions..."
 mkdir -p "$EXTENSIONS"
 cd "$EXTENSIONS"
 
-clone_repo "https://github.com/altoiddealer/sd-webui-ar-plusplus.git"
+clone_repo "https://github.com/altoiddealer/--sd-webui-ar-plusplus"
 clone_repo "https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo.git"
 clone_repo "https://github.com/abzaloff/aadetailer-neoforge.git"
 clone_repo "https://github.com/eduardoabreu81/sd-civitai-browser-neo.git"
