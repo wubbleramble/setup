@@ -453,11 +453,11 @@ download_file() {
   fi
 
   local auth_header=()
-  if [ "$is_civitai" -eq 1 ] && [ -n "$CIVITAI_API_KEY" ]; then
-    curl -L -O --header="Authorization: Bearer $CIVITAI_API_KEY" "$url"
-  elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
-    curl -L -O --header="Authorization: Bearer $HUGGINGFACE_TOKEN" "$url"
-  fi
+if [ "$is_civitai" -eq 1 ] && [ -n "$CIVITAI_API_KEY" ]; then
+    auth_header=(-H "Authorization: Bearer $CIVITAI_API_KEY")
+elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
+    auth_header=(-H "Authorization: Bearer $HUGGINGFACE_TOKEN")
+fi
 
   local expected_size=0
   local thumb_url=""
