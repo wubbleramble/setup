@@ -461,13 +461,23 @@ download_extension_zip() {
   local auth_header_curl=()
   [ -n "$CIVITAI_API_KEY" ] && auth_header_curl=(-H "Authorization: Bearer ${CIVITAI_API_KEY}")
 
-  # Metadata lookup here is just to get a friendly name for logging --
-  # extraction happens regardless of whether this succeeds.
+  # Metadata lookup gets both a friendly name for logging AND the
+  # expected file size. The expected size matters more here than it
+  # does for models: extensions can legitimately be tiny (sometimes
+  # just one or two Python files, well under 10KB), so a flat "must
+  # be over 10KB" floor incorrectly rejects a valid small zip. Using
+  # the real expected size (same approach as download_file() for
+  # models) also still catches the actual failure mode this is meant
+  # to guard against: Civitai returning a small HTML error/login page
+  # with an HTTP 200 status instead of the real file, which curl -f
+  # doesn't treat as an error on its own.
   local filename=""
+  local expected_size=0
   local prefix
   prefix="e$(echo "$url" | md5sum | cut -c1-10)"
   if civitai_fetch_metadata "$url" "$prefix"; then
     filename="$(cat "${META_TMP_DIR}/${prefix}.filename" 2>/dev/null || echo "")"
+    expected_size="$(cat "${META_TMP_DIR}/${prefix}.size_bytes" 2>/dev/null || echo 0)"
   fi
 
   local tmp_zip
@@ -483,10 +493,20 @@ download_extension_zip() {
 
   local actual_size
   actual_size="$(stat -c%s "$tmp_zip" 2>/dev/null || echo 0)"
-  if [ "$actual_size" -le 10240 ]; then
-    log "  [FAIL] Extension archive too small, likely invalid: $url"
+  local size_ok=0
+  if [ "$expected_size" -gt 0 ]; then
+    # Within 1% of Civitai's reported size, same tolerance as models.
+    local min_ok=$(( expected_size * 99 / 100 ))
+    [ "$actual_size" -ge "$min_ok" ] && size_ok=1
+  elif [ "$actual_size" -gt 1024 ]; then
+    # No metadata size available -- fall back to a much lower floor
+    # (1KB, not 10KB) since a legitimate extension zip can be small.
+    size_ok=1
+  fi
+  if [ "$size_ok" -ne 1 ]; then
+    log "  [FAIL] Extension archive size looks wrong (got ${actual_size} bytes, expected ~${expected_size:-unknown}): $url"
     rm -f "$tmp_zip"
-    FAILED+=("extension archive: ${filename:-unknown} (url: $url) — file too small")
+    FAILED+=("extension archive: ${filename:-unknown} (url: $url) — file too small/wrong size")
     return 1
   fi
 
