@@ -338,6 +338,12 @@ PYEOF
 # any partial file is deleted first, so the next attempt starts a
 # clean download against whatever fresh redirect it gets. This trades
 # a bit of bandwidth on repeated failures for actually working.
+#
+# NOTE ON HEADERS: this function shells out to wget, and wget's
+# short flag "-H" means "--span-hosts" (a boolean, no argument) --
+# it is NOT a header flag like curl's "-H". Any auth_header array
+# passed in here MUST use wget's long-form "--header=..." syntax,
+# never "-H". See auth_header_wget in download_file() below.
 MAX_ATTEMPTS=5
 
 download_with_retry() {
@@ -401,6 +407,9 @@ download_with_retry() {
 # files) but is never forwarded to the R2 domain (avoiding the
 # conflicting-auth 400). This is the correct, general fix — no manual
 # redirect resolution needed at all.
+#
+# NOTE ON HEADERS: this function shells out to curl, so "-H" is the
+# correct header flag here (unlike wget above).
 download_with_retry_curl() {
   local url="$1"
   local output_path="$2"
@@ -431,6 +440,70 @@ download_with_retry_curl() {
   return 1
 }
 
+# download_extension_zip <civitai_zip_url>
+#
+# Some Forge extensions are distributed on Civitai as a zip archive
+# rather than a git repo. Unlike model downloads via download_file(),
+# this does NOT write a .json/.preview.png sidecar (that metadata is
+# model-specific and doesn't belong in the extensions folder), and
+# the zip itself is discarded after extraction -- only the extracted
+# extension folder is kept in EXT_DIR, matching how clone_extension()
+# leaves only the checked-out folder behind.
+download_extension_zip() {
+  local url="$1"
+
+  if [ -z "$HAVE_CURL" ]; then
+    log "  [FAIL] curl is required for Civitai downloads but is not installed: $url"
+    FAILED+=("extension archive: (unknown) (url: $url) — curl not installed")
+    return 1
+  fi
+
+  local auth_header_curl=()
+  [ -n "$CIVITAI_API_KEY" ] && auth_header_curl=(-H "Authorization: Bearer ${CIVITAI_API_KEY}")
+
+  # Metadata lookup here is just to get a friendly name for logging --
+  # extraction happens regardless of whether this succeeds.
+  local filename=""
+  local prefix
+  prefix="e$(echo "$url" | md5sum | cut -c1-10)"
+  if civitai_fetch_metadata "$url" "$prefix"; then
+    filename="$(cat "${META_TMP_DIR}/${prefix}.filename" 2>/dev/null || echo "")"
+  fi
+
+  local tmp_zip
+  tmp_zip="$(mktemp "${EXT_DIR}/.dlext.XXXXXX.zip")"
+
+  log "  [DOWNLOAD] extension archive -> $EXT_DIR${filename:+ ($filename)}"
+  if ! download_with_retry_curl "$url" "$tmp_zip" "${auth_header_curl[@]}"; then
+    log "  [FAIL] Extension archive download failed: $url"
+    rm -f "$tmp_zip"
+    FAILED+=("extension archive: ${filename:-unknown} (url: $url)")
+    return 1
+  fi
+
+  local actual_size
+  actual_size="$(stat -c%s "$tmp_zip" 2>/dev/null || echo 0)"
+  if [ "$actual_size" -le 10240 ]; then
+    log "  [FAIL] Extension archive too small, likely invalid: $url"
+    rm -f "$tmp_zip"
+    FAILED+=("extension archive: ${filename:-unknown} (url: $url) — file too small")
+    return 1
+  fi
+
+  if maybe_extract_archive "$tmp_zip" "$EXT_DIR"; then
+    log "  [OK] Extension archive extracted${filename:+ ($filename)}"
+    SUCCEEDED+=("extension archive: ${filename:-$url}")
+  else
+    log "  [FAIL] Extraction failed for extension archive: $url"
+    FAILED+=("extension archive: ${filename:-unknown} (url: $url) — extraction failed")
+    rm -f "$tmp_zip"
+    return 1
+  fi
+
+  rm -f "$tmp_zip"  # only the extracted folder is kept, not the archive
+  return 0
+}
+
 # download_file <url> <target_dir> [explicit_filename]
 #
 # Downloads a single file with a live progress bar. Skips if a file
@@ -452,12 +525,21 @@ download_file() {
     return 1
   fi
 
-  local auth_header=()
-if [ "$is_civitai" -eq 1 ] && [ -n "$CIVITAI_API_KEY" ]; then
-    auth_header=(-H "Authorization: Bearer $CIVITAI_API_KEY")
-elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
-    auth_header=(-H "Authorization: Bearer $HUGGINGFACE_TOKEN")
-fi
+  # Two SEPARATE header arrays, in each tool's own required syntax --
+  # this is important, not stylistic. curl's "-H" and wget's "-H"
+  # mean completely different things (curl: header; wget: span-hosts,
+  # a flag with no argument). Mixing them up silently breaks auth:
+  # wget would treat "-H" as a boolean flag and the header string as
+  # a stray extra URL argument. Civitai downloads always go through
+  # curl (auth_header_curl), HuggingFace/direct downloads always go
+  # through wget (auth_header_wget) -- never cross-used.
+  local auth_header_curl=()
+  local auth_header_wget=()
+  if [ "$is_civitai" -eq 1 ] && [ -n "$CIVITAI_API_KEY" ]; then
+    auth_header_curl=(-H "Authorization: Bearer ${CIVITAI_API_KEY}")
+  elif [[ "$url" == *huggingface.co* ]] && [ -n "$HUGGINGFACE_TOKEN" ]; then
+    auth_header_wget=(--header="Authorization: Bearer ${HUGGINGFACE_TOKEN}")
+  fi
 
   local expected_size=0
   local thumb_url=""
@@ -498,11 +580,11 @@ fi
       # curl -L handles Civitai's redirect correctly on its own (see
       # the comment on download_with_retry_curl above) -- no manual
       # redirect resolution needed.
-      if ! download_with_retry_curl "$url" "$target_path" "${auth_header[@]}"; then
+      if ! download_with_retry_curl "$url" "$target_path" "${auth_header_curl[@]}"; then
         dl_ok=0
       fi
     else
-      if ! download_with_retry "$url" "$target_path" 1 "${auth_header[@]}"; then
+      if ! download_with_retry "$url" "$target_path" 1 "${auth_header_wget[@]}"; then
         dl_ok=0
       fi
     fi
@@ -543,13 +625,14 @@ fi
 
   # ---- Case B: Civitai metadata lookup failed (API down, unusual
   # URL shape, etc). Fall back to downloading into a temp folder and
-  # letting wget read the real filename from Content-Disposition.
+  # letting the tool read the real filename from Content-Disposition.
   # NOTE: wget's -O flag always overrides --content-disposition
   # naming, so this deliberately does NOT use -O / download_with_retry
-  # — it lets wget name the file itself, with its own -c/--tries for
-  # resume support on large files.
+  # — it lets the tool name the file itself, with its own retry/resume
+  # support for large files.
   local b_dl_url="$url"
-  local b_dl_auth=("${auth_header[@]}")
+  local b_dl_auth_curl=("${auth_header_curl[@]}")
+  local b_dl_auth_wget=("${auth_header_wget[@]}")
   ( cd "$TMP_DL_DIR" && rm -f -- *
     local b_attempt=1
     while [ "$b_attempt" -le "$MAX_ATTEMPTS" ]; do
@@ -563,11 +646,11 @@ fi
         # above for the full explanation. -O -J: use the server's
         # suggested filename (equivalent to wget's --content-disposition).
         curl -fL --retry 2 --retry-delay 5 --connect-timeout 30 \
-          --progress-bar -O -J "${b_dl_auth[@]}" "$b_dl_url" 2>&1 | tee -a "$LOG_FILE"
+          --progress-bar -O -J "${b_dl_auth_curl[@]}" "$b_dl_url" 2>&1 | tee -a "$LOG_FILE"
       else
         wget -c --tries=3 --timeout=60 --waitretry=10 \
           --progress=bar:force:noscroll --content-disposition \
-          "${b_dl_auth[@]}" "$b_dl_url" 2>&1 | tee -a "$LOG_FILE"
+          "${b_dl_auth_wget[@]}" "$b_dl_url" 2>&1 | tee -a "$LOG_FILE"
       fi
       b_wget_status="${PIPESTATUS[0]}"
       [ "$b_wget_status" -eq 0 ] && break
@@ -650,12 +733,19 @@ EXTENSIONS=(
   "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
   "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
   "https://github.com/SiliconeShojo/ScribeNEO.git"
+)
+for url in "${EXTENSIONS[@]}"; do
+  clone_extension "$url"
+done
+
+log "\n== Extensions (zipped, from Civitai) =="
+EXTENSION_ARCHIVES=(
   "https://civitai.red/api/download/models/3072640?fileId=2951582"
   "https://civitai.red/api/download/models/3027315?fileId=2906064"
   "https://civitai.red/api/download/models/3026211?fileId=2904995"
 )
-for url in "${EXTENSIONS[@]}"; do
-  clone_extension "$url"
+for url in "${EXTENSION_ARCHIVES[@]}"; do
+  download_extension_zip "$url"
 done
 
 log "\n== VAE =="
