@@ -650,6 +650,9 @@ EXTENSIONS=(
   "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
   "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
   "https://github.com/SiliconeShojo/ScribeNEO.git"
+  "https://civitai.red/api/download/models/3072640?fileId=2951582"
+  "https://civitai.red/api/download/models/3027315?fileId=2906064"
+  "https://civitai.red/api/download/models/3026211?fileId=2904995"
 )
 for url in "${EXTENSIONS[@]}"; do
   clone_extension "$url"
@@ -700,12 +703,6 @@ ADETAILER=(
 for url in "${ADETAILER[@]}"; do
   download_file "$url" "$ADETAILER_DIR"
 done
-
-log "\n== Checkpoint =="
-download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
 
 log "\n== LoRA =="
 LORAS=(
@@ -771,6 +768,10 @@ CONTROLNET=(
 for url in "${CONTROLNET[@]}"; do
   download_file "$url" "$CONTROLNET_DIR"
 done
+
+log "\n== Checkpoint =="
+download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
 
 # ==================== SUMMARY ====================
 log "\n\n================ SUMMARY ================"
