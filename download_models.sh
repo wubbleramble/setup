@@ -864,8 +864,6 @@ CONTROLNET=(
 "https://huggingface.co/xinsir/controlnet-tile-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors"
 "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-tile/resolve/main/noob-sdxl-controlnet-tile.safetensors"
 "https://huggingface.co/windsingai/Illustrious-XL-openpose-test/resolve/main/openpose_s6000.safetensors"
-"https://huggingface.co/windsingai/Illustrious-XL-Tile/resolve/main/illustriousXL_tile_controlnet.safetensors"
-"https://huggingface.co/windsingai/Illustrious-XL-Tile/resolve/main/illustriousXL_tile_controlnet_10w.safetensors"
 "https://civitai.com/api/download/models/1284707?type=Model&format=SafeTensor&size=full&fp=fp32"
 "https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-depth-1.safetensors"
 "https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-v2.safetensors"
