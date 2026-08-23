@@ -129,7 +129,7 @@ clone_extension() {
     SUCCEEDED+=("extension: $name")
   else
     log "  [FAIL] $name"
-    FAILED+=("extension: $name (url: $url)")
+    FAILED+=(": $name (url: $url)")
     # Clean up a half-cloned folder so a retry later doesn't think
     # it's already done.
     rm -rf "$target"
@@ -752,7 +752,7 @@ EXTENSIONS=(
   "https://github.com/light-and-ray/sd-webui-yandere-inpaint-masked-content.git"
   "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
   "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
-  "https://github.com/SiliconeShojo/ScribeNEO.git"
+  "https://github.com/AllastorV/sd-forge-img2img-tagger.git"
 )
 for url in "${EXTENSIONS[@]}"; do
   clone_extension "$url"
