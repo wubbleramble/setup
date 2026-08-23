@@ -30,7 +30,7 @@
 # WHERE FILES GO:
 #   This assumes your Forge WebUI is at:
 #     /workspace/stable-diffusion-webui-forge
-#   with model folders under .../models/<Category>/ and extensions
+#   with model folders under .../models/<Category>/ and s
 #   under .../extensions/. If your path is different, change BASE_DIR
 #   below (it's the only path variable you should need to touch).
 # ------------------------------------------------------------------
@@ -760,7 +760,6 @@ done
 
 log "\n== Extensions (zipped, from Civitai) =="
 EXTENSION_ARCHIVES=(
-  "https://civitai.red/api/download/models/3072640?fileId=2951582"
   "https://civitai.red/api/download/models/3027315?fileId=2906064"
   "https://civitai.red/api/download/models/3026211?fileId=2904995"
 )
@@ -816,6 +815,8 @@ done
 
 log "\n== LoRA =="
 LORAS=(
+"https://civitai.red/api/download/models/2060939?fileId=1957648"
+"https://civitai.red/api/download/models/2498581?fileId=2386638"
 "https://civitai.red/api/download/models/2579082?fileId=2466259"
 "https://civitai.red/api/download/models/2177579?fileId=2070697"
 "https://civitai.red/api/download/models/2154919?fileId=2048262"
