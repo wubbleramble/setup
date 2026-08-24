@@ -753,6 +753,7 @@ EXTENSIONS=(
   "https://github.com/Replactionap/Stable-Diffusion-Webui-Civitai-Helper-RED-UPDATE.git"
   "https://github.com/yamosin/seedvr2-webui-neo-extension.git"
   "https://github.com/AllastorV/sd-forge-img2img-tagger.git"
+  "https://github.com/Whatwhatio/anima-lllite-forge-neo-fix.git"
 )
 for url in "${EXTENSIONS[@]}"; do
   clone_extension "$url"
