@@ -290,24 +290,26 @@ save_civitai_sidecar() {
   local thumb_url="$2"
   local target_dir="$3"
   local filename="$4"
-  local base_name="${filename%.*}"
 
   if [ -n "$HAVE_PY3" ] && [ -s "$raw_json" ]; then
     OUT_PATH="${target_dir}/${filename}.json" python3 <<PYEOF || log "  [WARN] Could not write metadata sidecar for $filename"
 import json, os
 with open("$raw_json") as fh:
     data = json.load(fh)
+trained = data.get("trainedWords", []) or []
 sidecar = {
     "model_name": (data.get("model") or {}).get("name", ""),
     "version_name": data.get("name", ""),
     "base_model": data.get("baseModel", ""),
-    "trained_words": data.get("trainedWords", []) or [],
+    "trained_words": trained,
+    "activation text": ", ".join(trained),
 }
 with open(os.environ["OUT_PATH"], "w") as out:
     json.dump(sidecar, out, indent=2)
 PYEOF
     log "  [META] Saved trigger words / info to ${filename}.json"
   fi
+  ...
 
   if [ -n "$thumb_url" ]; then
     if wget -q -O "${target_dir}/${base_name}.preview.png" "$thumb_url"; then
