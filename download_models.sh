@@ -320,15 +320,6 @@ PYEOF
     fi
   fi
 }
-  if [ -n "$thumb_url" ]; then
-    if wget -q -O "${target_dir}/${base_name}.preview.png" "$thumb_url"; then
-      log "  [META] Saved thumbnail to ${base_name}.preview.png"
-    else
-      log "  [WARN] Thumbnail download failed for $filename"
-      rm -f "${target_dir}/${base_name}.preview.png"
-    fi
-  fi
-}
 
 # -------------------- Resumable download core --------------------
 #
