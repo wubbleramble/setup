@@ -290,6 +290,7 @@ save_civitai_sidecar() {
   local thumb_url="$2"
   local target_dir="$3"
   local filename="$4"
+  local base_name="${filename%.*}"
 
   if [ -n "$HAVE_PY3" ] && [ -s "$raw_json" ]; then
     OUT_PATH="${target_dir}/${filename}.json" python3 <<PYEOF || log "  [WARN] Could not write metadata sidecar for $filename"
@@ -309,8 +310,16 @@ with open(os.environ["OUT_PATH"], "w") as out:
 PYEOF
     log "  [META] Saved trigger words / info to ${filename}.json"
   fi
-  ...
 
+  if [ -n "$thumb_url" ]; then
+    if wget -q -O "${target_dir}/${base_name}.preview.png" "$thumb_url"; then
+      log "  [META] Saved thumbnail to ${base_name}.preview.png"
+    else
+      log "  [WARN] Thumbnail download failed for $filename"
+      rm -f "${target_dir}/${base_name}.preview.png"
+    fi
+  fi
+}
   if [ -n "$thumb_url" ]; then
     if wget -q -O "${target_dir}/${base_name}.preview.png" "$thumb_url"; then
       log "  [META] Saved thumbnail to ${base_name}.preview.png"
