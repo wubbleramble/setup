@@ -853,6 +853,13 @@ LORAS=(
 "https://civitai.red/api/download/models/3058132?fileId=2938272"
 "https://civitai.red/api/download/models/3050990?fileId=2934234"
 "https://civitai.red/api/download/models/3067262?fileId=2946387"
+"https://civitai.red/api/download/models/1383619?fileId=1286305"
+"https://civitai.red/api/download/models/2263536?fileId=2155728"
+"https://civitai.red/api/download/models/1396589?fileId=1668198"
+"https://civitai.red/api/download/models/1412821?fileId=1314670"
+"https://civitai.red/api/download/models/3208083?fileId=3089650"
+"https://civitai.red/api/download/models/1428822?fileId=1330047"
+"https://civitai.red/api/download/models/3144577?fileId=3024967"
 )
 for url in "${LORAS[@]}"; do
   download_file "$url" "$LORA_DIR"
@@ -886,7 +893,10 @@ done
 log "\n== Checkpoint =="
 download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
-
+download_file "https://civitai.red/api/download/models/2639718?fileId=2527648" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3122224?fileId=3002623" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3242452?fileId=3125046" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2006448?fileId=1903456" "$CHECKPOINT_DIR"
 # ==================== SUMMARY ====================
 log "\n\n================ SUMMARY ================"
 log "Succeeded: ${#SUCCEEDED[@]}"
