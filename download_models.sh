@@ -293,7 +293,7 @@ save_civitai_sidecar() {
   local base_name="${filename%.*}"
 
   if [ -n "$HAVE_PY3" ] && [ -s "$raw_json" ]; then
-    OUT_PATH="${target_dir}/${filename}.json" python3 <<PYEOF || log "  [WARN] Could not write metadata sidecar for $filename"
+    OUT_PATH="${target_dir}/${base_name}.json" python3 <<PYEOF || log "  [WARN] Could not write metadata sidecar for $filename"
 import json, os
 with open("$raw_json") as fh:
     data = json.load(fh)
@@ -308,7 +308,7 @@ sidecar = {
 with open(os.environ["OUT_PATH"], "w") as out:
     json.dump(sidecar, out, indent=2)
 PYEOF
-    log "  [META] Saved trigger words / info to ${filename}.json"
+    log "  [META] Saved trigger words / info to ${base_name}.json"
   fi
 
   if [ -n "$thumb_url" ]; then
