@@ -770,6 +770,25 @@ for url in "${EXTENSION_ARCHIVES[@]}"; do
   download_extension_zip "$url"
 done
 
+log "\n== Checkpoint =="
+download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2639718?fileId=2527648" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3122224?fileId=3002623" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3242452?fileId=3125046" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2006448?fileId=1903456" "$CHECKPOINT_DIR"
+# ==================== SUMMARY ====================
+log "\n\n================ SUMMARY ================"
+log "Succeeded: ${#SUCCEEDED[@]}"
+log "Skipped (already existed): ${#SKIPPED[@]}"
+log "Failed: ${#FAILED[@]}"
+
+if [ "${#FAILED[@]}" -gt 0 ]; then
+  log "\n-- Failed items (fix these links or rerun the script) --"
+  for item in "${FAILED[@]}"; do
+    log "  - $item"
+  done
+
 log "\n== VAE =="
 download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
 download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
@@ -889,25 +908,6 @@ CONTROLNET=(
 for url in "${CONTROLNET[@]}"; do
   download_file "$url" "$CONTROLNET_DIR"
 done
-
-log "\n== Checkpoint =="
-download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2639718?fileId=2527648" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3122224?fileId=3002623" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3242452?fileId=3125046" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2006448?fileId=1903456" "$CHECKPOINT_DIR"
-# ==================== SUMMARY ====================
-log "\n\n================ SUMMARY ================"
-log "Succeeded: ${#SUCCEEDED[@]}"
-log "Skipped (already existed): ${#SKIPPED[@]}"
-log "Failed: ${#FAILED[@]}"
-
-if [ "${#FAILED[@]}" -gt 0 ]; then
-  log "\n-- Failed items (fix these links or rerun the script) --"
-  for item in "${FAILED[@]}"; do
-    log "  - $item"
-  done
 fi
 
 log "\nFull log saved to: $LOG_FILE"
