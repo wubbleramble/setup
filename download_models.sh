@@ -778,6 +778,31 @@ download_file "https://civitai.red/api/download/models/3122224?fileId=3002623" "
 download_file "https://civitai.red/api/download/models/3242452?fileId=3125046" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2006448?fileId=1903456" "$CHECKPOINT_DIR"
 
+log "\n== ControlNet =="
+CONTROLNET=(
+"https://huggingface.co/kataragi/controlnetXL_inpaint/resolve/main/Kataragi_inpaintXL-fp16.safetensors"
+"https://huggingface.co/Eugeoter/noob-sdxl-controlnet-tile/resolve/main/noob-sdxl-controlnet-tile.safetensors"
+"https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors"
+"https://huggingface.co/xinsir/controlnet-tile-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors"
+"https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_xl.pth"
+"https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/kohya_controllllite_xl_openpose_anime_v2.safetensors"
+"https://civitai.com/api/download/models/1390253?type=Model&format=SafeTensor"
+"https://huggingface.co/windsingai/Illustrious-XL-openpose-test/resolve/main/openpose_s6000.safetensors"
+"https://civitai.com/api/download/models/1284707?type=Model&format=SafeTensor&size=full&fp=fp32"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-v2.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-v2-beta-epoch-03.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-1-step2000.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-depth-1.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-inpainting-v2.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-lineart-1.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-pose-1.safetensors"
+"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-scribble-1.safetensors"
+"https://civitai.red/api/download/models/3068951?fileId=2947687"
+)
+for url in "${CONTROLNET[@]}"; do
+  download_file "$url" "$CONTROLNET_DIR"
+done
+
 log "\n== VAE =="
 download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
 download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
@@ -874,31 +899,6 @@ LORAS=(
 )
 for url in "${LORAS[@]}"; do
   download_file "$url" "$LORA_DIR"
-done
-
-log "\n== ControlNet =="
-CONTROLNET=(
-"https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_xl.pth"
-"https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/kohya_controllllite_xl_openpose_anime_v2.safetensors"
-"https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors"
-"https://civitai.com/api/download/models/1390253?type=Model&format=SafeTensor"
-"https://huggingface.co/kataragi/controlnetXL_inpaint/resolve/main/Kataragi_inpaintXL-fp16.safetensors"
-"https://huggingface.co/xinsir/controlnet-tile-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors"
-"https://huggingface.co/Eugeoter/noob-sdxl-controlnet-tile/resolve/main/noob-sdxl-controlnet-tile.safetensors"
-"https://huggingface.co/windsingai/Illustrious-XL-openpose-test/resolve/main/openpose_s6000.safetensors"
-"https://civitai.com/api/download/models/1284707?type=Model&format=SafeTensor&size=full&fp=fp32"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-v2.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-v2-beta-epoch-03.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-any-test-like-1-step2000.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-depth-1.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-inpainting-v2.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-lineart-1.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-pose-1.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/blob/main/anima-lllite-scribble-1.safetensors"
-"https://civitai.red/api/download/models/3068951?fileId=2947687"
-)
-for url in "${CONTROLNET[@]}"; do
-  download_file "$url" "$CONTROLNET_DIR"
 done
 
 # ==================== SUMMARY ====================
