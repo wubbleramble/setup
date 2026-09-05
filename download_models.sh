@@ -902,6 +902,8 @@ LORAS=(
 "https://civitai.red/api/download/models/1322451?fileId=1226385"
 "https://civitai.red/api/download/models/1320383?fileId=1234461"
 "https://civitai.red/api/download/models/1346688?fileId=1358739"
+"https://civitai.red/api/download/models/1490218?fileId=1393195"
+"https://civitai.red/api/download/models/2613253?fileId=2500626"
 )
 for url in "${LORAS[@]}"; do
   download_file "$url" "$LORA_DIR"
