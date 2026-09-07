@@ -775,8 +775,7 @@ download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "
 download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2639718?fileId=2527648" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/3122224?fileId=3002623" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3242452?fileId=3125046" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2006448?fileId=1903456" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
 
 log "\n== ControlNet =="
 CONTROLNET=(
