@@ -770,6 +770,23 @@ for url in "${EXTENSION_ARCHIVES[@]}"; do
   download_extension_zip "$url"
 done
 
+log "\n== VAE =="
+download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
+download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
+
+log "\n== Text Encoder =="
+download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors" "$TEXT_ENCODER_DIR"
+
+log "\n== Upscalers (ESRGAN) =="
+UPSCALERS=(
+  "https://civitai.red/api/download/models/164821?fileId=2037845"
+  "https://civitai.red/api/download/models/2674200?fileId=2560903"
+  "https://civitai.red/api/download/models/729727?fileId=643878"
+)
+for url in "${UPSCALERS[@]}"; do
+  download_file "$url" "$ESRGAN_DIR"
+done
+
 log "\n== Checkpoint =="
 download_file "https://civitai.red/api/download/models/2862490?fileId=2746761" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
@@ -802,13 +819,6 @@ for url in "${CONTROLNET[@]}"; do
   download_file "$url" "$CONTROLNET_DIR"
 done
 
-log "\n== VAE =="
-download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
-download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
-
-log "\n== Text Encoder =="
-download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors" "$TEXT_ENCODER_DIR"
-
 log "\n== Embeddings =="
 EMBEDDINGS=(
   "https://civitai.com/api/download/models/1833157?type=Model&format=SafeTensor"
@@ -817,16 +827,6 @@ EMBEDDINGS=(
 )
 for url in "${EMBEDDINGS[@]}"; do
   download_file "$url" "$EMBEDDINGS_DIR"
-done
-
-log "\n== Upscalers (ESRGAN) =="
-UPSCALERS=(
-  "https://civitai.red/api/download/models/164821?fileId=2037845"
-  "https://civitai.red/api/download/models/2674200?fileId=2560903"
-  "https://civitai.red/api/download/models/729727?fileId=643878"
-)
-for url in "${UPSCALERS[@]}"; do
-  download_file "$url" "$ESRGAN_DIR"
 done
 
 log "\n== ADetailer =="
