@@ -854,7 +854,6 @@ LORAS=(
 "https://civitai.red/api/download/models/2498581?fileId=2386638"
 "https://civitai.red/api/download/models/2579082?fileId=2466259"
 "https://civitai.red/api/download/models/2177579?fileId=2070697"
-"https://civitai.red/api/download/models/2154919?fileId=2048262"
 "https://civitai.red/api/download/models/2080703?fileId=1976653"
 "https://civitai.red/api/download/models/2979435?fileId=2866837"
 "https://civitai.red/api/download/models/2613253?fileId=2500626"
@@ -903,6 +902,12 @@ LORAS=(
 "https://civitai.red/api/download/models/1346688?fileId=1358739"
 "https://civitai.red/api/download/models/1490218?fileId=1393195"
 "https://civitai.red/api/download/models/2613253?fileId=2500626"
+"https://civitai.red/api/download/models/1797933?fileId=1698559"
+"https://civitai.red/api/download/models/1896831?fileId=1796124"
+"https://civitai.red/api/download/models/2008821?fileId=1905833"
+"https://civitai.red/api/download/models/1288389?fileId=1196942"
+"https://civitai.red/api/download/models/2398424?fileId=2288734"
+"https://civitai.red/api/download/models/2521543?fileId=2409648"
 )
 for url in "${LORAS[@]}"; do
   download_file "$url" "$LORA_DIR"
