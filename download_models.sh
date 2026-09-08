@@ -782,6 +782,10 @@ UPSCALERS=(
   "https://civitai.red/api/download/models/164821?fileId=2037845"
   "https://civitai.red/api/download/models/2674200?fileId=2560903"
   "https://civitai.red/api/download/models/729727?fileId=643878"
+  "https://civitai.com/api/download/models/2634279?fileId=2522213"
+  "https://huggingface.co/zelt54/RoNa/resolve/main/R-ESRGAN%204x%2B%20Anime6B.pth"
+  "https://huggingface.co/Kim2091/AnimeSharp/resolve/main/4x-AnimeSharp.pth"
+  "https://huggingface.co/Kim2091/AnimeSharp/resolve/main/4x-AnimeSharp.safetensors"
 )
 for url in "${UPSCALERS[@]}"; do
   download_file "$url" "$ESRGAN_DIR"
