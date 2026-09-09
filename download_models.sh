@@ -906,7 +906,6 @@ LORAS=(
 "https://civitai.red/api/download/models/1490218?fileId=1393195"
 "https://civitai.red/api/download/models/2613253?fileId=2500626"
 "https://civitai.red/api/download/models/1797933?fileId=1698559"
-"https://civitai.red/api/download/models/1896831?fileId=1796124"
 "https://civitai.red/api/download/models/2008821?fileId=1905833"
 "https://civitai.red/api/download/models/1288389?fileId=1196942"
 "https://civitai.red/api/download/models/2398424?fileId=2288734"
