@@ -747,7 +747,6 @@ EXTENSIONS=(
   "https://github.com/hnmr293/sd-webui-cutoff.git"
   "https://github.com/hako-mikan/sd-webui-cd-tuner.git"
   "https://github.com/shirayu/sd-webui-enable-checker.git"
-  "https://github.com/hirorohi03/sd-webui-forge-spectrum.git"
   "https://github.com/Haoming02/sd-forge-negpip.git"
   "https://github.com/Haoming02/sd-webui-resharpen.git"
   "https://github.com/Haoming02/sd-webui-tabs-extension.git"
