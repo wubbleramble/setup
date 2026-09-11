@@ -844,6 +844,7 @@ ADETAILER=(
   "https://civitai.red/api/download/models/582139?fileId=497510"
   "https://civitai.red/api/download/models/2038997?fileId=1935916"
   "https://civitai.red/api/download/models/2350456?fileId=2240838"
+  "https://civitai.red/api/download/models/2487429?fileId=2375769"
 )
 for url in "${ADETAILER[@]}"; do
   download_file "$url" "$ADETAILER_DIR"
@@ -851,6 +852,7 @@ done
 
 log "\n== LoRA =="
 LORAS=(
+"https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SDXL-8steps-CFG-lora.safetensors"
 "https://civitai.red/api/download/models/2060939?fileId=1957648"
 "https://civitai.red/api/download/models/2498581?fileId=2386638"
 "https://civitai.red/api/download/models/2579082?fileId=2466259"
