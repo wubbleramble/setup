@@ -770,6 +770,19 @@ for url in "${EXTENSION_ARCHIVES[@]}"; do
   download_extension_zip "$url"
 done
 
+log "\n== Restoring extensions backup =="
+EXTENSIONS_BACKUP_URL="https://huggingface.co/datasets/YureDaaed/test/resolve/main/extensions-backup.zip"
+EXTENSIONS_BACKUP_TMP="$(mktemp)"
+
+if wget -q -O "$EXTENSIONS_BACKUP_TMP" "$EXTENSIONS_BACKUP_URL"; then
+  rm -rf "${EXT_DIR:?}"
+  unzip -q "$EXTENSIONS_BACKUP_TMP" -d "$BASE_DIR"
+  log "  [OK] Extensions backup restored"
+else
+  log "  [WARN] Could not download extensions backup — keeping freshly cloned extensions as-is"
+fi
+rm -f "$EXTENSIONS_BACKUP_TMP"
+
 log "\n== VAE =="
 download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
 download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
