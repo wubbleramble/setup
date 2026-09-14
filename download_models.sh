@@ -786,6 +786,7 @@ rm -f "$EXTENSIONS_BACKUP_TMP"
 log "\n== VAE =="
 download_file "https://civitai.red/api/download/models/648388?fileId=824329" "$VAE_DIR"
 download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors" "$VAE_DIR"
+download_file "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/ema_vae_fp16.safetensors "$VAE_DIR"
 
 log "\n== Text Encoder =="
 download_file "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors" "$TEXT_ENCODER_DIR"
@@ -797,8 +798,8 @@ UPSCALERS=(
   "https://civitai.red/api/download/models/729727?fileId=643878"
   "https://civitai.com/api/download/models/2634279?fileId=2522213"
   "https://huggingface.co/zelt54/RoNa/resolve/main/R-ESRGAN%204x%2B%20Anime6B.pth"
-  "https://huggingface.co/Kim2091/AnimeSharp/resolve/main/4x-AnimeSharp.pth"
   "https://huggingface.co/Kim2091/AnimeSharp/resolve/main/4x-AnimeSharp.safetensors"
+  "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_sharp-Q4_K_M.gguf"
 )
 for url in "${UPSCALERS[@]}"; do
   download_file "$url" "$ESRGAN_DIR"
