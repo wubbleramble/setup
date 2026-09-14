@@ -808,6 +808,7 @@ log "\n== Checkpoint =="
 download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
 
 log "\n== ControlNet =="
 CONTROLNET=(
@@ -941,6 +942,8 @@ LORAS=(
 "https://civitai.red/api/download/models/2067668?fileId=1964081"
 "https://civitai.red/api/download/models/2825512?fileId=2711379"
 #for comission
+"https://civitai.red/api/download/models/3309555?fileId=3194770"
+"https://civitai.red/api/download/models/3318624?fileId=3204220"
 "https://civitai.red/api/download/models/2872747?fileId=2754608"
 "https://civitai.red/api/download/models/2453902?fileId=2344424"
 "https://civitai.red/api/download/models/1198783?fileId=1104320"
