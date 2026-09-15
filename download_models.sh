@@ -942,7 +942,17 @@ LORAS=(
 "https://civitai.red/api/download/models/2017718?fileId=1914724"
 "https://civitai.red/api/download/models/2067668?fileId=1964081"
 "https://civitai.red/api/download/models/2825512?fileId=2711379"
-#for comission
+"https://civitai.red/api/download/models/2987156?fileId=2866665"
+"https://civitai.red/api/download/models/3275498?fileId=3159521"
+"https://civitai.red/api/download/models/3243016?fileId=3125648"
+"https://civitai.red/api/download/models/3230323?fileId=3112648"
+"https://civitai.red/api/download/models/2454381?fileId=2344728"
+"https://civitai.red/api/download/models/3053762?fileId=2932460"
+"https://civitai.red/api/download/models/3057337?fileId=2936001"
+"https://civitai.red/api/download/models/3059807?fileId=2938436"
+"https://civitai.red/api/download/models/3036905?fileId=2915794"
+"https://civitai.red/api/download/models/3076192?fileId=2955299"
+#for luz comission
 "https://civitai.red/api/download/models/3309555?fileId=3194770"
 "https://civitai.red/api/download/models/3318624?fileId=3204220"
 "https://civitai.red/api/download/models/2872747?fileId=2754608"
