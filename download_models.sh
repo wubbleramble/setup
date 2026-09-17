@@ -805,13 +805,6 @@ for url in "${UPSCALERS[@]}"; do
   download_file "$url" "$ESRGAN_DIR"
 done
 
-log "\n== Checkpoint =="
-download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
-
 log "\n== ControlNet =="
 CONTROLNET=(
 "https://huggingface.co/kataragi/controlnetXL_inpaint/resolve/main/Kataragi_inpaintXL-fp16.safetensors"
@@ -837,16 +830,6 @@ for url in "${CONTROLNET[@]}"; do
   download_file "$url" "$CONTROLNET_DIR"
 done
 
-log "\n== Embeddings =="
-EMBEDDINGS=(
-  "https://civitai.com/api/download/models/1833157?type=Model&format=SafeTensor"
-  "https://civitai.com/api/download/models/2121199?type=Model&format=Other"
-  "https://civitai.com/api/download/models/1601074?type=Model&format=SafeTensor"
-)
-for url in "${EMBEDDINGS[@]}"; do
-  download_file "$url" "$EMBEDDINGS_DIR"
-done
-
 log "\n== ADetailer =="
 ADETAILER=(
   "https://civitai.com/api/download/models/176512"
@@ -865,6 +848,23 @@ ADETAILER=(
 )
 for url in "${ADETAILER[@]}"; do
   download_file "$url" "$ADETAILER_DIR"
+done
+
+log "\n== Checkpoint =="
+download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
+
+log "\n== Embeddings =="
+EMBEDDINGS=(
+  "https://civitai.com/api/download/models/1833157?type=Model&format=SafeTensor"
+  "https://civitai.com/api/download/models/2121199?type=Model&format=Other"
+  "https://civitai.com/api/download/models/1601074?type=Model&format=SafeTensor"
+)
+for url in "${EMBEDDINGS[@]}"; do
+  download_file "$url" "$EMBEDDINGS_DIR"
 done
 
 log "\n== LoRA =="
