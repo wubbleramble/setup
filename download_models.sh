@@ -248,7 +248,27 @@ try:
     size_kb = chosen.get("sizeKB", 0) if chosen else 0
     size_bytes = int(size_kb * 1024) if size_kb else 0
     images = data.get("images", []) or []
-    thumb = images[0].get("url", "") if images else ""
+    # Pick the first STATIC image (.jpg/.jpeg/.png) for the thumbnail,
+    # skipping anything Civitai marks as a video and skipping any
+    # image whose URL is actually a GIF/MP4/WEBM (animated). This is
+    # what keeps animated example gallery entries from ending up as
+    # the saved thumbnail.
+    STATIC_EXTS = (".jpg", ".jpeg", ".png")
+    thumb = ""
+    for img in images:
+        img_type = (img.get("type") or "").lower()
+        img_url = img.get("url", "") or ""
+        ext = os.path.splitext(img_url.split("?")[0])[1].lower()
+        if img_type == "video":
+            continue
+        if ext in STATIC_EXTS:
+            thumb = img_url
+            break
+    # Fallback: if none of the images matched (e.g. the gallery for
+    # this model is entirely GIFs/videos), fall back to the first
+    # image anyway so a thumbnail still gets saved.
+    if not thumb and images:
+        thumb = images[0].get("url", "")
     print(name)
     print(size_bytes)
     print(thumb)
