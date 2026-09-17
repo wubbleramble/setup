@@ -810,6 +810,7 @@ download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "
 download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
 
 log "\n== ControlNet =="
 CONTROLNET=(
