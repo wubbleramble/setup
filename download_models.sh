@@ -830,7 +830,7 @@ CONTROLNET=(
 "https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-inpainting-v1.safetensors"
 "https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-inpainting-v2.safetensors"
 "https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-exp-change-2-000007.safetensors"
-"https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-depth-1.safetensors"
+"https://huggingface.co/TaihoC/Anima-ControlNet-VACE-Depth/resolve/main/anima-vace-depth.safetensors"
 "https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-any-test-like-v2.safetensors"
 "https://civitai.red/api/download/models/3068951?fileId=2947687"
 )
