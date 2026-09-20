@@ -878,6 +878,7 @@ done
 log "\n== LoRA =="
 LORAS=(
 "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SDXL-8steps-CFG-lora.safetensors"
+"https://civitai.red/api/download/models/3287274?fileId=3171666"
 "https://civitai.red/api/download/models/2060939?fileId=1957648"
 "https://civitai.red/api/download/models/2498581?fileId=2386638"
 "https://civitai.red/api/download/models/2579082?fileId=2466259"
@@ -961,6 +962,8 @@ LORAS=(
 "https://civitai.red/api/download/models/3059807?fileId=2938436"
 "https://civitai.red/api/download/models/3036905?fileId=2915794"
 "https://civitai.red/api/download/models/3076192?fileId=2955299"
+"https://civitai.red/api/download/models/3102800?fileId=2982619"
+"https://civitai.red/api/download/models/3313647?fileId=3198914"
 #for luz comission
 "https://civitai.red/api/download/models/3309555?fileId=3194770"
 "https://civitai.red/api/download/models/3318624?fileId=3204220"
