@@ -964,6 +964,11 @@ LORAS=(
 "https://civitai.red/api/download/models/3076192?fileId=2955299"
 "https://civitai.red/api/download/models/3102800?fileId=2982619"
 "https://civitai.red/api/download/models/3313647?fileId=3198914"
+"https://civitai.red/api/download/models/3257446?fileId=3142102"
+"https://civitai.red/api/download/models/3156823?fileId=3037654"
+"https://civitai.red/api/download/models/3026703?fileId=2905468"
+"https://civitai.red/api/download/models/2954049?fileId=2833331"
+"https://civitai.red/api/download/models/3057337?fileId=2936001"
 #for luz comission
 "https://civitai.red/api/download/models/3309555?fileId=3194770"
 "https://civitai.red/api/download/models/3318624?fileId=3204220"
