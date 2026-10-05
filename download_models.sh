@@ -840,12 +840,6 @@ done
 
 log "\n== ADetailer =="
 ADETAILER=(
-  "https://civitai.com/api/download/models/176512"
-  "https://civitai.com/api/download/models/2509406?type=Model&format=PickleTensor"
-  "https://civitai.com/api/download/models/1384450?type=Model&format=PickleTensor"
-  "https://civitai.com/api/download/models/168820?type=Archive&format=Other"
-  "https://civitai.com/api/download/models/1780243?type=Archive&format=Other"
-  "https://civitai.com/api/download/models/235730?type=Archive&format=Other"
   "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov9c.pt"
   "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov9c.pt"
   "https://civitai.red/api/download/models/465360?fileId=384289"
@@ -853,17 +847,23 @@ ADETAILER=(
   "https://civitai.red/api/download/models/2038997?fileId=1935916"
   "https://civitai.red/api/download/models/2350456?fileId=2240838"
   "https://civitai.red/api/download/models/2487429?fileId=2375769"
+  "https://civitai.com/api/download/models/176512"
+  "https://civitai.com/api/download/models/2509406?type=Model&format=PickleTensor"
+  "https://civitai.com/api/download/models/1384450?type=Model&format=PickleTensor"
+  "https://civitai.com/api/download/models/168820?type=Archive&format=Other"
+  "https://civitai.com/api/download/models/1780243?type=Archive&format=Other"
+  "https://civitai.com/api/download/models/235730?type=Archive&format=Other"
+  "https://civitai.red/models/329458/"
 )
 for url in "${ADETAILER[@]}"; do
   download_file "$url" "$ADETAILER_DIR"
 done
 
 log "\n== Checkpoint =="
-download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2883731?fileId=2763986" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3334245?fileId=3220803" "$CHECKPOINT_DIR"
 download_file "https://civitai.red/api/download/models/2964675?fileId=2844069" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/2983680?fileId=2863158" "$CHECKPOINT_DIR"
-download_file "https://civitai.red/api/download/models/3041842?fileId=2920618" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/1911770?fileId=1810454" "$CHECKPOINT_DIR"
+download_file "https://civitai.red/api/download/models/3302448?fileId=3187496" "$CHECKPOINT_DIR"
 
 log "\n== Embeddings =="
 EMBEDDINGS=(
